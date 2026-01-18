@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Circle Internet Group, Inc.  All rights reserved.
+ * Copyright 2025 Circle Internet Group, Inc.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,16 @@ namespace NodeJS {
   interface ProcessEnv {
     // Supabase
     NEXT_PUBLIC_SUPABASE_URL: string
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: string
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY: string
+    SUPABASE_SERVICE_ROLE_KEY: string
 
     // Circle
     CIRCLE_API_KEY: string
     CIRCLE_ENTITY_SECRET: string
+    CIRCLE_BLOCKCHAIN: string
+    CIRCLE_USDC_TOKEN_ID: string
+
+    // Misc
+    ADMIN_EMAIL: string
   }
 }

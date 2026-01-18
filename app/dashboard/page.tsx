@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Circle Internet Group, Inc.  All rights reserved.
+ * Copyright 2025 Circle Internet Group, Inc.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,25 +17,28 @@
  */
 
 import { redirect } from "next/navigation";
-
 import { createClient } from "@/lib/supabase/server";
-import { WalletDashboard } from "@/components/wallet-dashboard";
+import { AdminDashboard } from "@/components/admin-dashboard";
+import { UserDashboard } from "@/components/user-dashboard";
 
-export default async function ProtectedPage() {
+export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.getClaims();
-  if (error || !data?.claims) {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // 1. Ensure a user is logged in
+  if (error || !user) {
     redirect("/auth/login");
   }
 
-  return (
-    <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-      <main className="flex-1 flex flex-col gap-6 px-4">
-        <div className="flex flex-col items-center gap-4">
-          <WalletDashboard />
-        </div>
-      </main>
-    </div>
-  );
+  // 2. Perform the security check on the server
+  // We compare the user's email with the secure environment variable.
+  const isAdmin = user.email === process.env.ADMIN_EMAIL;
+
+  // 3. Render the appropriate dashboard component
+  // A regular user's browser will never receive the <AdminDashboard /> component.
+  return isAdmin ? <AdminDashboard /> : <UserDashboard />;
 }

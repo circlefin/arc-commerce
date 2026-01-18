@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Circle Internet Group, Inc.  All rights reserved.
+ * Copyright 2025 Circle Internet Group, Inc.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,26 @@
 export function Hero() {
   return (
     <div className="flex flex-col gap-16 items-center">
-      <h1 className="sr-only">Supabase and Next.js Starter Template</h1>
+      <h1 className="sr-only">Arc Commerce</h1>
       <p className="text-3xl lg:text-4xl leading-tight! mx-auto max-w-xl text-center">
-        Wallet with unified cross-chain{" "}
-        <b>USDC balances</b>{" "}
+        Platform credit purchases using{" "}
+        <a
+          href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
+          target="_blank"
+          className="font-bold hover:underline"
+          rel="noreferrer"
+        >
+          USDC
+        </a>{" "}
         and{" "}
-        <b>transfers</b>
+        <a
+          href="https://www.circle.com/wallets"
+          target="_blank"
+          className="font-bold hover:underline"
+          rel="noreferrer"
+        >
+          Circle Wallets
+        </a>
       </p>
     </div>
   );

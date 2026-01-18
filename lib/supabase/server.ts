@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Circle Internet Group, Inc.  All rights reserved.
+ * Copyright 2025 Circle Internet Group, Inc.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,26 +19,33 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-/**
- * Especially important if using Fluid compute: Don't put this client in a
- * global variable. Always create a new client within each function when using
- * it.
- */
+// This import triggers your admin user creation script on server startup.
+import "@/lib/supabase/initialize-admin-user";
+
+// Import the new Circle platform operator wallet creation script
+import "@/lib/circle/initialize-admin-wallet";
+
 export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
     {
+      // This is the corrected cookies object that resolves the deprecation warning.
       cookies: {
+        // The new `getAll` method should return all cookies.
+        // The `cookies()` function from `next/headers` provides a `getAll()` method that
+        // returns cookies in the exact format needed: an array of { name, value }.
         getAll() {
           return cookieStore.getAll();
         },
+        // The new `setAll` method receives an array of cookies to set.
+        // We need to loop through this array and call `cookieStore.set()` for each one.
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
+              cookieStore.set(name, value, options)
             );
           } catch {
             // The `setAll` method was called from a Server Component.
@@ -47,6 +54,6 @@ export async function createClient() {
           }
         },
       },
-    },
+    }
   );
 }

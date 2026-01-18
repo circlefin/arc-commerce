@@ -15,11 +15,8 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
       - name: Install dependencies
-        run: pnpm install
+        run: npm install
 
   scan:
     needs: lint-and-test

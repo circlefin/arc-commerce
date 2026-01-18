@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Circle Internet Group, Inc.  All rights reserved.
+ * Copyright 2025 Circle Internet Group, Inc.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { circleDeveloperSdk } from "@/lib/circle/sdk";
+import { circleDeveloperSdk } from "@/lib/circle/developer-controlled-wallets-client";
 
-export async function PUT(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const { entityName } = await req.json();
 
@@ -42,8 +42,11 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ ...response.data.walletSet }, { status: 201 });
-  } catch (error: any) {
-    console.error(`Wallet set creation failed: ${error.message}`);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Wallet set creation failed: ${error.message}`);
+    }
+
     return NextResponse.json(
       { error: "Failed to create wallet set" },
       { status: 500 }

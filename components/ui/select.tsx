@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Circle Internet Group, Inc.  All rights reserved.
+ * Copyright 2025 Circle Internet Group, Inc.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,6 @@ function SelectContent({
   className,
   children,
   position = "popper",
-  align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   return (
@@ -86,7 +85,6 @@ function SelectContent({
           className
         )}
         position={position}
-        align={align}
         {...props}
       >
         <SelectScrollUpButton />
