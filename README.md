@@ -13,7 +13,7 @@ This project demonstrates how to integrate USDC as a payment method for purchasi
 
    ```bash
    git clone git@github.com:circlefin/arc-commerce.git
-   cd top-up
+   cd arc-commerce
    npm install
    ```
 
