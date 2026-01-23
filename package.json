@@ -7,13 +7,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@circle-fin/bridge-kit": "^1.1.2",
-    "@circle-fin/developer-controlled-wallets": "^8.4.1",
-    "@circle-fin/modular-wallets-core": "^1.0.11",
-    "@hookform/resolvers": "^5.2.2",
-    "@metamask/delegation-toolkit": "^0.13.0",
+    "@circle-fin/developer-controlled-wallets": "^10.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
-    "@radix-ui/react-checkbox": "^1.3.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.7",
@@ -27,10 +22,8 @@
     "@supabase/supabase-js": "latest",
     "@tanstack/react-query": "^5.90.2",
     "@tanstack/react-table": "^8.21.3",
-    "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.511.0",
     "next": "latest",
@@ -38,12 +31,10 @@
     "react": "^19.0.0",
     "react-day-picker": "^9.11.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.63.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.0",
-    "viem": "^2.38.0",
-    "wagmi": "^2.17.5",
-    "zod": "^4.1.11"
+    "viem": "^2.44.4",
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -51,7 +42,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "baseline-browser-mapping": "^2.9.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "postcss": "^8",
