@@ -36,7 +36,7 @@ export default function ProtectedLayout({
             <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
               <div className="flex gap-5 items-center font-semibold">
                 <ThemeSwitcher />
-                <Link href={"/"}>top-up</Link>
+                <Link href={"/"}>arc-commerce</Link>
               </div>
               <div className="flex items-center gap-3">
                 {/* The wallet buttons have been removed from here */}
