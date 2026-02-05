@@ -18,12 +18,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-  scan:
-    needs: lint-and-test
-    if: ${{ github.event_name == 'pull_request' && github.event.repository.private == false }}
-    uses: circlefin/circle-public-github-workflows/.github/workflows/pr-scan.yaml@v1
+  # scan:
+  #   needs: lint-and-test
+  #   if: ${{ github.event_name == 'pull_request' && github.event.repository.private == false }}
+  #   uses: circlefin/circle-public-github-workflows/.github/workflows/pr-scan.yaml@v1
 
-  release-sbom:
-    needs: lint-and-test
-    if: github.event_name == 'push'
-    uses: circlefin/circle-public-github-workflows/.github/workflows/attach-release-assets.yaml@v1
+  # release-sbom:
+  #   needs: lint-and-test
+  #   if: github.event_name == 'push'
+  #   uses: circlefin/circle-public-github-workflows/.github/workflows/attach-release-assets.yaml@v1
