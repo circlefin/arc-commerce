@@ -21,6 +21,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Button } from "@/components/ui/button";
+import { Copy, Check } from "lucide-react";
+import { toast } from "sonner";
+import { DEFAULT_CHAIN } from "@/lib/wagmi/config";
 
 export function ConnectWalletButton() {
   const { address, isConnected } = useAccount();
@@ -28,6 +31,7 @@ export function ConnectWalletButton() {
   const { disconnect } = useDisconnect();
 
   const [isClient, setIsClient] = useState(false);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -75,7 +79,7 @@ export function ConnectWalletButton() {
         size="sm"
         disabled={!walletConnector || connectStatus === "pending"}
         onClick={() =>
-          walletConnector && connect({ connector: walletConnector })
+          walletConnector && connect({ connector: walletConnector, chainId: DEFAULT_CHAIN.id })
         }
       >
         {connectStatus === "pending" ? "Connecting..." : "Connect Wallet"}
@@ -83,10 +87,27 @@ export function ConnectWalletButton() {
     );
   }
 
+  const copyAddress = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      toast.success("Address copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy address");
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <Button variant="secondary" disabled size="sm">
+      <Button variant="secondary" size="sm" onClick={copyAddress} title={address}>
         {address ? shortAddress(address) : "Connected"}
+        {copied ? (
+          <Check className="w-3 h-3 ml-1" />
+        ) : (
+          <Copy className="w-3 h-3 ml-1" />
+        )}
       </Button>
       <Button variant="outline" size="sm" onClick={() => disconnect()}>
         Disconnect

@@ -21,8 +21,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin-client";
 import { circleDeveloperSdk } from "@/lib/circle/developer-controlled-wallets-client";
 import { convertToSmallestUnit } from "@/lib/utils/convert-to-smallest-unit";
-import { encodeFunctionData } from "viem";
-import type { Abi } from "viem";
 import {
   CHAIN_IDS_TO_MESSAGE_TRANSMITTER,
   CHAIN_IDS_TO_TOKEN_MESSENGER,
@@ -418,7 +416,7 @@ async function updateAdminTransactionStatus(
     });
 
     if (insertError) {
-      if ((insertError as any).code === "23505") {
+      if ("code" in insertError && insertError.code === "23505") {
         // Unique constraint hit (e.g., idempotency_key). Treat as success and continue.
         console.log("[CCTP] Mint insert deduped by unique constraint.");
       } else {

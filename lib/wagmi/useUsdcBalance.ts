@@ -53,6 +53,7 @@ export function useUsdcBalance(): UsdcBalanceResult {
     query: {
       enabled,
       staleTime: 15_000,
+      refetchInterval: 15_000,
       refetchOnWindowFocus: true,
     },
   });

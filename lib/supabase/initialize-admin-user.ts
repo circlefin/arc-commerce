@@ -22,7 +22,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 // These environment variables must be available on your server.
 // You should have them in a .env.local file for local development.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SECRET_KEY;
 
 // A server-side-only, admin client for Supabase.
 let adminAuthClient: SupabaseClient | null = null;
@@ -59,7 +59,7 @@ const createAdminUserIfNotExists = async () => {
     const errorMessage = rpcError.message || "Unknown error";
     const errorCode = rpcError.code || "Unknown code";
     const errorDetails = rpcError.details || "";
-    
+
     // Check if it's a network/connection error
     if (
       errorMessage.includes("invalid response") ||
