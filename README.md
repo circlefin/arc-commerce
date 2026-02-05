@@ -1,6 +1,8 @@
 # Arc Commerce
 
-This project demonstrates how to integrate USDC as a payment method for purchasing credits on Arc.
+Integrate USDC as a payment method for purchasing credits on Arc. This sample application uses Next.js, Supabase, and Circle Developer Controlled Wallets to demonstrate a credit purchase flow with USDC payments on Arc testnet.
+
+<img width="830" height="646" alt="User dashboard for credit purchase" src="public/screenshot.png" />
 
 ## Table of Contents
 
@@ -14,10 +16,12 @@ This project demonstrates how to integrate USDC as a payment method for purchasi
 - **Node.js v22+** — Install via [nvm](https://github.com/nvm-sh/nvm) (`nvm use` will read the `.nvmrc` file)
 - **Supabase CLI** — Install via `npm install -g supabase` or see [Supabase CLI docs](https://supabase.com/docs/guides/cli/getting-started)
 - **Docker Desktop** (only if using the local Supabase path) — [Install Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- **[ngrok](https://ngrok.com/)** - for local webhook testing)
+- Circle Developer Controlled Wallets **[API key](https://console.circle.com/signin)** and **[Entity Secret](https://developers.circle.com/wallets/dev-controlled/register-entity-secret)**
 
-## Clone and Run Locally
+## Getting Started
 
-1. **Clone and install dependencies:**
+1. Clone the repository and install dependencies:
 
    ```bash
    git clone git@github.com:circlefin/arc-commerce.git
@@ -25,7 +29,7 @@ This project demonstrates how to integrate USDC as a payment method for purchasi
    npm install
    ```
 
-2. **Set up the database** — Choose one of the two paths below:
+2. Set up the database — Choose one of the two paths below:
 
    <details>
    <summary><strong>Path 1: Local Supabase (Docker)</strong></summary>
@@ -55,7 +59,7 @@ This project demonstrates how to integrate USDC as a payment method for purchasi
 
    </details>
 
-3. **Set up environment variables:**
+3. Set up environment variables:
 
    ```bash
    cp .env.example .env.local
@@ -63,17 +67,17 @@ This project demonstrates how to integrate USDC as a payment method for purchasi
 
    Then edit `.env.local` and fill in all required values. Use the Supabase URL and keys from the previous step's output (see [Environment Variables](#environment-variables) section below).
 
-4. **Start the development server:**
+4. Start the development server:
 
    ```bash
    npm run dev
    ```
 
-   The app will be available at [http://localhost:3000](http://localhost:3000/). The admin wallet will be automatically created on first startup.
+   The app will be available at `http://localhost:3000`. The admin wallet is automatically created on first startup.
 
-5. **Set up Circle Webhooks:**
+5. Set up Circle Webhooks (for local development):
 
-   In a separate terminal, start ngrok to expose your local server:
+   In a separate terminal, expose your local server:
 
    ```bash
    ngrok http 3000
@@ -83,6 +87,14 @@ This project demonstrates how to integrate USDC as a payment method for purchasi
    - Navigate to Circle Console → Webhooks
    - Add a new webhook endpoint: `https://your-ngrok-url.ngrok.io/api/circle/webhook`
    - Keep ngrok running while developing to receive webhook events
+
+## How It Works
+
+- Built with [Next.js](https://nextjs.org/) and [Supabase](https://supabase.com/)
+- Uses [Circle Developer Controlled Wallets](https://developers.circle.com/wallets/dev-controlled) for USDC transactions
+- Wallet operations handled server-side with `@circle-fin/developer-controlled-wallets`
+- Webhook signature verification ensures secure transaction notifications
+- Admin wallet automatically initialized on first run
 
 ## Environment Variables
 
@@ -134,3 +146,16 @@ Supabase limits email signups to **2 per hour** by default (unless custom SMTP i
 
 - **Local Supabase (Docker):** Email verification is handled by the built-in [Inbucket](http://127.0.0.1:54324) mail server — check it to confirm signups. The rate limit can be adjusted in `supabase/config.toml` under `[auth.rate_limit]`.
 - **Remote Supabase (Cloud):** Use real email addresses (disposable emails may fail verification). If you hit the limit, you can manually add users via the Supabase dashboard under **Authentication → Users**.
+- `npm run dev`: Start Next.js development server with auto-reload
+- `npx supabase start`: Start local Supabase instance
+- `npx supabase migration up`: Apply database migrations
+
+## Security & Usage Model
+
+This sample application:
+- Assumes testnet usage only
+- Handles secrets via environment variables
+- Verifies webhook signatures for security
+- Is not intended for production use without modification
+
+See `SECURITY.md` for vulnerability reporting guidelines. Please report issues privately via Circle's bug bounty program.
