@@ -23,7 +23,7 @@ import { ColumnDef, Row, Table } from "@tanstack/react-table";
 import { Database } from "@/types/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { chainNameToId } from "@/lib/utils/chain-utils";
+import { chainNameToId, getExplorerUrl } from "@/lib/utils/chain-utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -239,7 +239,6 @@ export const columns: ColumnDef<Wallet>[] = [
 
       // Convert chain name to numeric ID for the utility function
       const chainId = chain ? chainNameToId(chain) : undefined;
-      const { getExplorerUrl } = require("@/lib/utils/chain-utils");
       const explorerUrl = chainId
         ? getExplorerUrl(chainId, undefined, address)
         : `https://testnet.arcscan.app/address/${address}`;

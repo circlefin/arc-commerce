@@ -18,8 +18,9 @@
 
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { useNetworkSupport } from "@/lib/wagmi/useNetworkSupport";
+import { DEFAULT_CHAIN } from "@/lib/wagmi/config";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -27,44 +28,82 @@ export function UnsupportedNetworkNotice() {
   const {
     isConnected,
     isSupported,
+    currentChainId,
     unsupportedReason,
     canSwitch,
     isSwitching,
     trySwitch,
-    supportedChainIds,
   } = useNetworkSupport();
   const [dismissed, setDismissed] = useState(false);
 
-  if (!isConnected || isSupported || dismissed) return null;
+  const isOnDefaultChain = currentChainId === DEFAULT_CHAIN.id;
 
-  return (
-    <div className="w-full bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 px-4 py-3 text-sm flex items-start gap-3">
-      <AlertTriangle className="h-5 w-5 shrink-0" />
-      <div className="flex-1">
-        <div className="font-medium mb-0.5">Unsupported Network</div>
-        <div className="opacity-90">
-          {unsupportedReason ||
-            "You are connected to a network that this app does not support."}
-        </div>
-        <div className="mt-2 flex gap-2">
-          {canSwitch && (
+  if (!isConnected || dismissed) return null;
+
+  if (!isSupported) {
+    return (
+      <div className="w-full bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 px-4 py-3 text-sm flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 shrink-0" />
+        <div className="flex-1">
+          <div className="font-medium mb-0.5">Unsupported Network</div>
+          <div className="opacity-90">
+            {unsupportedReason ||
+              "You are connected to a network that this app does not support."}
+          </div>
+          <div className="mt-2 flex gap-2">
+            {canSwitch && (
+              <Button
+                size="sm"
+                onClick={() => trySwitch(DEFAULT_CHAIN.id)}
+                disabled={isSwitching}
+              >
+                {isSwitching ? "Switching..." : `Switch to ${DEFAULT_CHAIN.name}`}
+              </Button>
+            )}
             <Button
               size="sm"
-              onClick={() => trySwitch(supportedChainIds[0])}
-              disabled={isSwitching}
+              variant="outline"
+              onClick={() => setDismissed(true)}
             >
-              {isSwitching ? "Switching..." : "Switch Network"}
+              Dismiss
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setDismissed(true)}
-          >
-            Dismiss
-          </Button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (!isOnDefaultChain) {
+    return (
+      <div className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 px-4 py-3 text-sm flex items-start gap-3">
+        <Info className="h-5 w-5 shrink-0" />
+        <div className="flex-1">
+          <div className="font-medium mb-0.5">Switch to {DEFAULT_CHAIN.name}</div>
+          <div className="opacity-90">
+            This app works best on {DEFAULT_CHAIN.name}. Please switch to continue.
+          </div>
+          <div className="mt-2 flex gap-2">
+            {canSwitch && (
+              <Button
+                size="sm"
+                onClick={() => trySwitch(DEFAULT_CHAIN.id)}
+                disabled={isSwitching}
+              >
+                {isSwitching ? "Switching..." : `Switch to ${DEFAULT_CHAIN.name}`}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setDismissed(true)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

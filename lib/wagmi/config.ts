@@ -68,7 +68,7 @@ export const SUPPORTED_CHAINS = [
   arcTestnet
 ] as const;
 
-export const DEFAULT_CHAIN = mainnet;
+export const DEFAULT_CHAIN = arcTestnet;
 
 export const wagmiConfig = createConfig({
   chains: SUPPORTED_CHAINS,
