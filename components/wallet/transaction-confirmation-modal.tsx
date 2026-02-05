@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { CheckCircle, Clock, XCircle, ExternalLink, Copy } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { getNetworkName } from "@/lib/utils/chain-utils";
 
 interface TransactionData {
   id: string;
@@ -59,18 +60,6 @@ interface TransactionConfirmationModalProps {
   transaction: TransactionData | null;
   onRetry?: () => void;
 }
-
-const getNetworkName = (chainId: number): string => {
-  const networks: Record<number, string> = {
-    1: "Ethereum",
-    137: "Polygon",
-    8453: "Base",
-    42161: "Arbitrum",
-    10: "Optimism",
-  };
-
-  return networks[chainId] || `Chain ${chainId}`;
-};
 
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="flex justify-between items-center">

@@ -17,6 +17,7 @@
  */
 
 import type { Database } from "@/types/supabase";
+import type { AdminTransaction } from "@/types/admin-transaction";
 import { createClient } from "@supabase/supabase-js";
 import { AdminWalletsTable } from "@/components/admin-wallets-table/table";
 import { columns as walletColumns } from "@/components/admin-wallets-table/columns";
@@ -26,7 +27,7 @@ import { columns as transactionColumns } from "@/components/admin-transactions-t
 export async function AdminDashboard() {
   const supabaseAdmin = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SECRET_KEY!
   );
 
   // First fetch admin wallets to get their addresses
@@ -72,7 +73,7 @@ export async function AdminDashboard() {
 
       <AdminWalletsTable columns={walletColumns} data={wallets ?? []} />
       {/* Pass the initial data to the table component */}
-      <AdminTransactionsTable columns={transactionColumns} initialData={transactions as any ?? []} />
+      <AdminTransactionsTable columns={transactionColumns} initialData={transactions as AdminTransaction[] ?? []} />
     </div>
   );
 }

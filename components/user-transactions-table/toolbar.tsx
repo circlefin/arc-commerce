@@ -100,6 +100,7 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
             <SelectItem value="confirmed">Confirmed</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="complete">Complete</SelectItem>
           </SelectContent>
         </Select>
 
@@ -114,9 +115,10 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
             <SelectValue placeholder="Filter by Network" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Ethereum">Ethereum</SelectItem>
-            <SelectItem value="Polygon">Polygon</SelectItem>
-            <SelectItem value="Base">Base</SelectItem>
+            <SelectItem value="11155111">Ethereum Sepolia</SelectItem>
+            <SelectItem value="43113">Avalanche Fuji</SelectItem>
+            <SelectItem value="84532">Base Sepolia</SelectItem>
+            <SelectItem value="5042002">Arc Testnet</SelectItem>
           </SelectContent>
         </Select>
 

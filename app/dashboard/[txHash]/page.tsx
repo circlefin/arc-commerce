@@ -203,7 +203,7 @@ export default async function TransactionDetailsPage(
                               {event.new_status.charAt(0).toUpperCase() + event.new_status.slice(1)}
                             </Badge>
                           </TableCell>
-                          <TableCell>{format(new Date(event.created_at), "PP")}</TableCell>
+                          <TableCell>{format(new Date(event.created_at), "PPpp")}</TableCell>
                         </TableRow>
                       ))
                     ) : (

@@ -25,7 +25,7 @@ const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
 
 // Supabase Admin Client Initialization
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SECRET_KEY;
 
 // This in-memory flag ensures the initialization logic runs only once per server start.
 let isInitialized = false;
@@ -153,7 +153,7 @@ const runPlatformInitialization = async () => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     // Check if it's a network/connection error
     if (
       errorMessage.includes("invalid response") ||
