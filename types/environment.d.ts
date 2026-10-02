@@ -18,18 +18,14 @@
 
 namespace NodeJS {
   interface ProcessEnv {
-    // Supabase
     NEXT_PUBLIC_SUPABASE_URL: string
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY: string
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: string
     SUPABASE_SECRET_KEY: string
 
-    // Circle
     CIRCLE_API_KEY: string
     CIRCLE_ENTITY_SECRET: string
     CIRCLE_BLOCKCHAIN: string
-    CIRCLE_USDC_TOKEN_ID: string
 
-    // Misc
     ADMIN_EMAIL: string
   }
 }

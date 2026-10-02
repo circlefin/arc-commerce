@@ -14,7 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Create the 'credits' table
 CREATE TABLE public.credits (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -22,8 +21,6 @@ CREATE TABLE public.credits (
 );
 COMMENT ON TABLE public.credits IS 'Stores the credit balance for each user.';
 
-
--- Create a trigger function to handle new user creation (with admin exception)
 CREATE OR REPLACE FUNCTION public.handle_new_user_credits()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -40,14 +37,10 @@ END;
 $$;
 COMMENT ON FUNCTION public.handle_new_user_credits() IS 'Creates a credits row for a new user, unless they are the admin user.';
 
-
--- Create the trigger on the 'auth.users' table
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user_credits();
 
-
--- Create the RPC function to atomically increment credits (with upsert and admin exception)
 CREATE OR REPLACE FUNCTION public.increment_credits(
   user_id_to_update uuid,
   amount_to_add numeric
@@ -77,8 +70,6 @@ END;
 $$;
 COMMENT ON FUNCTION public.increment_credits(uuid, numeric) IS 'Atomically increments credits for a user. Creates a record if none exists. Returns 0 and does nothing for the admin user (admin@admin.com).';
 
-
--- Set up Row-Level Security (RLS) and Permissions
 ALTER TABLE public.credits ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view their own credits"
@@ -91,7 +82,4 @@ WITH CHECK ( auth.uid() = user_id );
 
 GRANT EXECUTE ON FUNCTION public.increment_credits(uuid, numeric) TO service_role;
 
-
--- Enable Supabase Realtime on the 'credits' table
--- This adds the table to the 'supabase_realtime' publication.
 ALTER PUBLICATION supabase_realtime ADD TABLE public.credits;

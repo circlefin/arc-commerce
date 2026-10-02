@@ -14,13 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Clean up duplicate RLS policies on transactions table
--- The previous migration added "Authenticated users can read all transactions"
--- but didn't remove the older "Users can read their own transactions" policy
--- This causes confusion and potential issues with realtime subscriptions
-
--- Drop the old restrictive policy
 DROP POLICY IF EXISTS "Users can read their own transactions" ON public.transactions;
 
--- Keep the broader policy that allows all authenticated users to read all transactions
--- (This is safe because only admin users can authenticate in this application)
+-- Only admins can authenticate, so the broader read policy is safe.

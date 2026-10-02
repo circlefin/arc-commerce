@@ -22,8 +22,10 @@ import { useRouter } from "next/navigation";
 import {
   ColumnDef,
   flexRender,
-  Table as TanstackTable,
+  ReactTable,
 } from "@tanstack/react-table";
+import type { TransactionRow } from "@/components/user-transactions-table/columns";
+import { features } from "@/components/user-transactions-table/columns";
 
 import {
   Table,
@@ -35,23 +37,20 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTableToolbar } from "@/components/user-transactions-table/toolbar";
-import { PurchaseTransaction } from "@/lib/mock-data";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  table: TanstackTable<TData>;
+interface DataTableProps {
+  columns: ColumnDef<typeof features, TransactionRow>[];
+  data: TransactionRow[];
+  table: ReactTable<typeof features, TransactionRow>;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable({
   columns,
   table,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps) {
   const router = useRouter();
 
-  const handleRowClick = (row: TData) => {
-    // We cast the row data to our specific type to access txHash
-    const transaction = row as PurchaseTransaction;
+  const handleRowClick = (transaction: TransactionRow) => {
     if (transaction.txHash) {
       router.push(`/dashboard/${transaction.txHash}`);
     }
@@ -84,11 +83,10 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  // The onClick handler and cursor-pointer class are now back.
                   onClick={() => handleRowClick(row.original)}
                   className="cursor-pointer"
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -113,7 +111,7 @@ export function DataTable<TData, TValue>({
       </div>
       <div className="flex items-center justify-end space-x-4 py-4">
         <div className="text-sm font-medium text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
+          Page {table.state.pagination.pageIndex + 1} of{" "}
           {table.getPageCount()}
         </div>
         <div className="flex items-center space-x-2">

@@ -30,7 +30,6 @@ export async function AdminDashboard() {
     process.env.SUPABASE_SECRET_KEY!
   );
 
-  // First fetch admin wallets to get their addresses
   const { data: wallets, error: walletsError } = await supabaseAdmin
     .from("admin_wallets")
     .select("*")
@@ -42,7 +41,6 @@ export async function AdminDashboard() {
 
   const adminWalletAddresses = wallets?.map(w => w.address) ?? [];
 
-  // Fetch all transactions and filter on the server side
   const { data: allTransactions, error: transactionsError } = await supabaseAdmin
     .from("transactions")
     .select("*, source_wallet:admin_wallets(label)")
@@ -52,7 +50,6 @@ export async function AdminDashboard() {
     console.error("Error fetching admin transactions:", transactionsError.message);
   }
 
-  // Filter: include non-USER transactions OR USER transactions sent to admin wallets
   const transactions = allTransactions?.filter(tx => {
     const isAdminTransaction = tx.transaction_type !== "USER";
     const isUserToAdminWallet =

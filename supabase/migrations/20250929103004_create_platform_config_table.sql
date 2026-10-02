@@ -14,10 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Create Platform Configuration Table
--- This table will store key-value pairs for platform-wide settings,
--- such as the ID of the primary Circle merchant wallet.
-
 CREATE TABLE public.platform_config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -25,21 +21,17 @@ CREATE TABLE public.platform_config (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Enable Row Level Security
 ALTER TABLE public.platform_config ENABLE ROW LEVEL SECURITY;
 
--- Allow read access for all users (e.g., if you ever need to expose a public key)
 CREATE POLICY "Allow public read access"
 ON public.platform_config FOR SELECT
 USING (true);
 
--- Restrict write access to the service role only
 CREATE POLICY "Allow full access for service role"
 ON public.platform_config FOR ALL
 USING (auth.role() = 'service_role')
 WITH CHECK (auth.role() = 'service_role');
 
--- Create the trigger for the updated_at timestamp
 CREATE TRIGGER on_platform_config_update
 BEFORE UPDATE ON public.platform_config
 FOR EACH ROW

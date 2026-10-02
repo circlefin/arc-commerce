@@ -16,26 +16,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FilterFn } from "@tanstack/react-table";
-import { RankingInfo } from "@tanstack/match-sorter-utils";
 import { Database } from "@/types/supabase";
-import { ConfirmableAction } from "@/components/admin-wallets-table/columns";
 
-type Wallet = Database["public"]["Tables"]["admin_wallets"]["Row"];
+type TransactionRow = Database["public"]["Tables"]["transactions"]["Row"];
 
-declare module "@tanstack/table-core" {
-  interface FilterFns {
-    dateBetween?: FilterFn<unknown>;
-  }
-
-  interface TableMeta {
-    openConfirmationDialog?: (wallet: Wallet, action: ConfirmableAction) => void;
-    // This is the new line to add:
-    openTransferDialog?: (wallet: Wallet) => void;
-    openBalanceDialog?: (wallet: Wallet) => void;
-  }
-
-  interface FilterMeta {
-    itemRank: RankingInfo;
-  }
+/** Shape returned to the browser for a recorded USER purchase. */
+export function serializeTransaction(tx: TransactionRow) {
+  return {
+    id: tx.id,
+    credits: Number(tx.credit_amount),
+    usdcAmount: Number(tx.amount_usdc),
+    txHash: tx.tx_hash,
+    chainId: Number(tx.chain),
+    status: tx.status,
+    createdAt: tx.created_at,
+    walletAddress: tx.wallet_id,
+  };
 }

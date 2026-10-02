@@ -14,11 +14,8 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Add a column to link a mint transaction back to its parent burn transaction.
 ALTER TABLE public.admin_transactions
   ADD COLUMN cctp_burn_tx_id UUID REFERENCES public.admin_transactions(id) ON DELETE SET NULL;
 
--- Create a unique index on this new column.
--- This is the core of the fix: it makes it impossible for more than one row
--- to ever reference the same parent burn transaction.
+-- Unique index: at most one mint per parent burn.
 CREATE UNIQUE INDEX one_mint_per_burn_idx ON public.admin_transactions (cctp_burn_tx_id);

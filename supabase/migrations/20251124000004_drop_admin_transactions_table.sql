@@ -14,13 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Drop the deprecated admin_transactions table
--- The admin_transactions table has been replaced by the unified transactions table
--- with transaction_type column to distinguish between different transaction types
--- This was done in migration 20251114100000_unify_transaction_tables.sql
-
--- Drop the admin_transactions table
 DROP TABLE IF EXISTS public.admin_transactions CASCADE;
 
--- Add a comment to document why it was removed
 COMMENT ON TABLE public.transactions IS 'Unified transactions table containing USER (credit purchases), ADMIN (standard transfers), and CCTP_* (cross-chain transfer steps) transactions';

@@ -18,24 +18,38 @@
 
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { createPublicClient, http, erc20Abi } from "viem";
+import { createPublicClient, http, erc20Abi, formatUnits } from "viem";
 import { Database } from "@/types/supabase";
 import { supabaseAdminClient } from "@/lib/supabase/admin-client";
 import { Blockchain, BridgeChain } from "@circle-fin/app-kit";
 import { getAppKit, createAdapter } from "@/lib/circle/app-kit-client";
+import { createWalletSetWithWallet } from "@/lib/circle/wallets";
+import { getAdminUser } from "@/lib/auth/admin";
 import {
-  SupportedChainId,
   CHAIN_IDS_TO_USDC_ADDRESSES,
   CHAIN_DB_TO_BRIDGE_CHAIN,
   CHAIN_DB_TO_RPC,
 } from "@/lib/chains";
-
-const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-  : "http://localhost:3000";
+import { chainNameToId } from "@/lib/utils/chain-utils";
+import { USDC_DECIMALS } from "@/lib/payments/credits";
 
 type WalletStatus = Database["public"]["Enums"]["admin_wallet_status"];
+type TransactionStatus = Database["public"]["Enums"]["transaction_status"];
+
+const UNAUTHORIZED = { error: "Unauthorized" };
+
+interface ActionResult {
+  success?: boolean;
+  error?: string;
+}
+
+interface TransferResult extends ActionResult {
+  txHash?: string;
+  /** Set when the transfer went through but the history row could not be saved. */
+  warning?: string;
+}
 
 export interface TokenBalance {
   token: {
@@ -48,9 +62,77 @@ export interface TokenBalance {
 }
 
 /**
- * Creates a new Circle wallet via internal API routes and saves it to the database.
+ * Server actions are public POST endpoints, so every exported action below must
+ * start with this check. The proxy only guards page navigations.
  */
-export async function createAdminWallet(formData: FormData) {
+async function isAdminRequest(): Promise<boolean> {
+  return (await getAdminUser()) !== null;
+}
+
+/**
+ * `transactions.chain` stores numeric chain IDs as strings (see migration
+ * 20251124010000), which is what the admin table uses to build explorer links.
+ */
+function chainColumnFor(dbChain: string | null): string {
+  const id = dbChain ? chainNameToId(dbChain) : undefined;
+  return id !== undefined ? String(id) : dbChain ?? "UNKNOWN";
+}
+
+interface AdminTransactionRecord {
+  sourceWalletId: string;
+  sourceChain: string | null;
+  sourceAddress: string;
+  destinationAddress: string;
+  amount: string;
+  /** On-chain hash when App Kit returned one. */
+  txHash?: string;
+  status: TransactionStatus;
+  kind: "send" | "bridge";
+}
+
+/**
+ * Persists an admin transfer. Returns a warning message when the row could not be
+ * saved, so callers can tell the admin the money moved but the history is missing.
+ */
+async function recordAdminTransaction(
+  record: AdminTransactionRecord
+): Promise<string | undefined> {
+  // `circle_transaction_id` is required and unique for ADMIN rows. Never reuse an
+  // unrelated identifier (e.g. a wallet id) when there is no hash: generate one.
+  const circleTransactionId = record.txHash ?? `${record.kind}:${randomUUID()}`;
+
+  const { error } = await supabaseAdminClient.from("transactions").insert({
+    transaction_type: "ADMIN",
+    circle_transaction_id: circleTransactionId,
+    tx_hash: record.txHash ?? null,
+    source_wallet_id: record.sourceWalletId,
+    destination_address: record.destinationAddress,
+    amount_usdc: Number(record.amount),
+    asset: "USDC",
+    chain: chainColumnFor(record.sourceChain),
+    wallet_id: record.sourceAddress,
+    idempotency_key: `admin:${circleTransactionId}`,
+    status: record.status,
+  });
+
+  if (error) {
+    console.error(
+      "CRITICAL: Failed to log admin transaction to database:",
+      error.message
+    );
+    return "The transfer was submitted but could not be saved to the transaction history.";
+  }
+  return undefined;
+}
+
+/**
+ * Creates a new Circle wallet and saves it to the database.
+ */
+export async function createAdminWallet(
+  formData: FormData
+): Promise<ActionResult> {
+  if (!(await isAdminRequest())) return UNAUTHORIZED;
+
   const label = formData.get("label") as string;
   const blockchain = formData.get("blockchain") as string;
 
@@ -62,22 +144,10 @@ export async function createAdminWallet(formData: FormData) {
   }
 
   try {
-    const createdWalletSetResponse = await fetch(`${baseUrl}/api/wallet-set`, {
-      method: "POST",
-      body: JSON.stringify({ entityName: `admin-wallet-${label}` }),
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!createdWalletSetResponse.ok)
-      throw new Error("Failed to create wallet set.");
-    const createdWalletSet = await createdWalletSetResponse.json();
-
-    const createdWalletResponse = await fetch(`${baseUrl}/api/wallet`, {
-      method: "POST",
-      body: JSON.stringify({ walletSetId: createdWalletSet.id, blockchain }),
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!createdWalletResponse.ok) throw new Error("Failed to create wallet.");
-    const newWallet = await createdWalletResponse.json();
+    const newWallet = await createWalletSetWithWallet(
+      `admin-wallet-${label}`,
+      blockchain
+    );
 
     const { error: insertError } = await supabaseAdminClient
       .from("admin_wallets")
@@ -100,13 +170,12 @@ export async function createAdminWallet(formData: FormData) {
   }
 }
 
-/**
- * Updates the status of an existing admin wallet.
- */
 export async function updateAdminWalletStatus(
   id: string,
   status: WalletStatus
-) {
+): Promise<ActionResult> {
+  if (!(await isAdminRequest())) return UNAUTHORIZED;
+
   try {
     const { error } = await supabaseAdminClient
       .from("admin_wallets")
@@ -125,18 +194,16 @@ export async function updateAdminWalletStatus(
   }
 }
 
-/**
- * Fetches the USDC balance for an admin wallet by reading directly from the chain.
- */
 export async function getWalletBalance(
   walletAddress: string,
   chainDbString: string
 ): Promise<{ balances?: TokenBalance[]; error?: string }> {
+  if (!(await isAdminRequest())) return UNAUTHORIZED;
+
   try {
-    const chainKey = chainDbString.replace(/-/g, "_");
-    const chainId =
-      SupportedChainId[chainKey as keyof typeof SupportedChainId];
-    const usdcAddress = CHAIN_IDS_TO_USDC_ADDRESSES[chainId];
+    const chainId = chainNameToId(chainDbString);
+    const usdcAddress =
+      chainId !== undefined ? CHAIN_IDS_TO_USDC_ADDRESSES[chainId] : undefined;
     const rpcUrl = CHAIN_DB_TO_RPC[chainDbString];
 
     if (!usdcAddress || !rpcUrl) {
@@ -151,9 +218,6 @@ export async function getWalletBalance(
       args: [walletAddress as `0x${string}`],
     });
 
-    const decimals = 6;
-    const amount = (Number(rawBalance) / 10 ** decimals).toString();
-
     return {
       balances: [
         {
@@ -161,9 +225,9 @@ export async function getWalletBalance(
             blockchain: chainDbString,
             name: "USD Coin",
             symbol: "USDC",
-            decimals,
+            decimals: USDC_DECIMALS,
           },
-          amount,
+          amount: formatUnits(rawBalance, USDC_DECIMALS),
         },
       ],
     };
@@ -178,15 +242,13 @@ export async function getWalletBalance(
   }
 }
 
-/**
- * Transfers USDC from an admin wallet to a destination address on the same chain
- * using App Kit Send.
- */
 export async function transferFromAdminWallet(
   sourceCircleWalletId: string,
   destinationAddress: string,
   amount: string
-) {
+): Promise<TransferResult> {
+  if (!(await isAdminRequest())) return UNAUTHORIZED;
+
   try {
     const { data: sourceWallet, error: fetchError } = await supabaseAdminClient
       .from("admin_wallets")
@@ -208,6 +270,7 @@ export async function transferFromAdminWallet(
     const kit = getAppKit();
     const adapter = createAdapter();
 
+    // App Kit reports the outcome in `state`; it does not always throw.
     const result = await kit.send({
       from: {
         adapter,
@@ -219,31 +282,31 @@ export async function transferFromAdminWallet(
       token: "USDC",
     });
 
-    const { error: insertError } = await supabaseAdminClient
-      .from("transactions")
-      .insert({
-        transaction_type: "ADMIN",
-        circle_transaction_id: result.txHash,
-        tx_hash: result.txHash,
-        source_wallet_id: sourceWallet.id,
-        destination_address: destinationAddress,
-        amount_usdc: Number(amount),
-        asset: "USDC",
-        chain: sourceWallet.chain ?? "UNKNOWN",
-        wallet_id: sourceWallet.address,
-        idempotency_key: `admin:${result.txHash}`,
-        status: "complete",
-      });
-
-    if (insertError) {
-      console.error(
-        "CRITICAL: Failed to log transaction to database:",
-        insertError.message
-      );
-    }
+    const failed = result.state === "error";
+    const warning = await recordAdminTransaction({
+      sourceWalletId: sourceWallet.id,
+      sourceChain: sourceWallet.chain,
+      sourceAddress: sourceWallet.address,
+      destinationAddress,
+      amount,
+      txHash: result.txHash,
+      status: failed
+        ? "failed"
+        : result.state === "success"
+          ? "complete"
+          : "pending",
+      kind: "send",
+    });
 
     revalidatePath("/dashboard");
-    return { success: true, txHash: result.txHash };
+
+    if (failed) {
+      return {
+        error: result.errorMessage || "The transfer failed.",
+        txHash: result.txHash,
+      };
+    }
+    return { success: true, txHash: result.txHash, warning };
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred.";
@@ -255,15 +318,13 @@ export async function transferFromAdminWallet(
   }
 }
 
-/**
- * Bridges USDC from an admin wallet to a destination address on a different chain
- * using App Kit Bridge (CCTPv2 Fast). Blocks until the full bridge is complete.
- */
 export async function transferFromAdminWalletCCTP(
   sourceCircleWalletId: string,
   destinationAddress: string,
   amount: string
-) {
+): Promise<TransferResult> {
+  if (!(await isAdminRequest())) return UNAUTHORIZED;
+
   try {
     const { data: sourceWallet, error: fetchError } = await supabaseAdminClient
       .from("admin_wallets")
@@ -322,35 +383,40 @@ export async function transferFromAdminWalletCCTP(
       config: { transferSpeed: "FAST" },
     });
 
-    const txHash =
-      result.steps?.at(-1)?.txHash ?? result.steps?.[0]?.txHash ?? sourceCircleWalletId;
-    const status = result.state === "success" ? "complete" : "pending";
+    // The row's `chain` is the source chain, so record the source-chain burn hash.
+    // Fall back to any step hash; never invent one.
+    const steps = result.steps ?? [];
+    const txHash = (
+      steps.find((step) => step.name.toLowerCase() === "burn" && step.txHash) ??
+      steps.findLast((step) => step.txHash)
+    )?.txHash;
 
-    const { error: insertError } = await supabaseAdminClient
-      .from("transactions")
-      .insert({
-        transaction_type: "ADMIN",
-        circle_transaction_id: txHash,
-        tx_hash: txHash,
-        source_wallet_id: sourceWallet.id,
-        destination_address: destinationAddress,
-        amount_usdc: Number(amount),
-        asset: "USDC",
-        chain: sourceWallet.chain ?? "UNKNOWN",
-        wallet_id: sourceWallet.address,
-        idempotency_key: `admin:${txHash}`,
-        status,
-      });
-
-    if (insertError) {
-      console.error(
-        "CRITICAL: Failed to log transaction to database:",
-        insertError.message
-      );
-    }
+    const failed = result.state === "error";
+    const warning = await recordAdminTransaction({
+      sourceWalletId: sourceWallet.id,
+      sourceChain: sourceWallet.chain,
+      sourceAddress: sourceWallet.address,
+      destinationAddress,
+      amount,
+      txHash,
+      status: failed
+        ? "failed"
+        : result.state === "success"
+          ? "complete"
+          : "pending",
+      kind: "bridge",
+    });
 
     revalidatePath("/dashboard");
-    return { success: true, txHash };
+
+    if (failed) {
+      const stepError = steps.find((step) => step.state === "error");
+      return {
+        error: stepError?.errorMessage || "The cross-chain transfer failed.",
+        txHash,
+      };
+    }
+    return { success: true, txHash, warning };
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred.";
@@ -362,10 +428,9 @@ export async function transferFromAdminWalletCCTP(
   }
 }
 
-/**
- * Fetches all admin wallet addresses for filtering realtime subscriptions.
- */
 export async function getAdminWalletAddresses(): Promise<string[]> {
+  if (!(await isAdminRequest())) return [];
+
   try {
     const { data, error } = await supabaseAdminClient
       .from("admin_wallets")

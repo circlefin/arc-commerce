@@ -14,11 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Backfill destination_address for existing USER transactions
--- All USER transactions are sent to the oldest admin wallet (as per /api/destination-wallet logic)
-
--- Update all USER transactions that don't have a destination_address set
--- Set it to the address of the oldest admin wallet
 UPDATE public.transactions
 SET destination_address = (
     SELECT address
@@ -29,5 +24,4 @@ SET destination_address = (
 WHERE transaction_type = 'USER'
   AND destination_address IS NULL;
 
--- Add a comment explaining this backfill
 COMMENT ON COLUMN public.transactions.destination_address IS 'Destination address (for admin transactions and user top-ups). USER transactions without this field were backfilled to use the oldest admin wallet.';

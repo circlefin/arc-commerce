@@ -14,11 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Add 'completed' status to transaction_status enum
--- This status indicates the transaction has been confirmed on-chain by MetaMask
--- but hasn't been processed by Circle's webhook yet
-
 ALTER TYPE transaction_status ADD VALUE IF NOT EXISTS 'completed' BEFORE 'confirmed';
 
--- Add comment explaining the new status
 COMMENT ON TYPE transaction_status IS 'Transaction status: pending (submitted), completed (on-chain confirmed by wallet), confirmed (verified by Circle), complete (fully processed), failed (transaction failed)';

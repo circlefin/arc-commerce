@@ -19,6 +19,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin-client";
+import { usdcToMicro } from "@/lib/payments/credits";
+import { verifyUsdcTransfer } from "@/lib/payments/verify-usdc-transfer";
+import { serializeTransaction } from "@/lib/payments/serialize-transaction";
+import { TX_HASH_PATTERN } from "@/lib/payments/tx-hash";
 
 /**
  * GET /api/transactions/[id]
@@ -121,18 +125,20 @@ export async function GET(
 
 /**
  * PATCH /api/transactions/[id]
- * Updates transaction status when MetaMask confirms the transaction on-chain.
+ * Marks a purchase complete once its transfer is verified on-chain.
  *
- * This provides faster feedback than waiting for Circle webhooks.
- * Only allows updating to 'completed' status to prevent abuse.
+ * This gives faster feedback than waiting for Circle's webhook, but it never
+ * trusts the browser: the server reads the receipt itself and checks that the
+ * recorded wallet really sent at least the recorded amount to the recorded admin
+ * wallet. Crediting happens inside the settle_user_transaction() SQL function so
+ * it can only ever be granted once, even if the webhook races this request.
  *
  * Expected JSON body:
  * {
- *   "status": "completed",
- *   "txHash": string,      // Must match the transaction's tx_hash for security
- *   "blockNumber": number, // Optional: block number where tx was mined
- *   "blockHash": string    // Optional: block hash for verification
+ *   "status": "complete",
+ *   "txHash": string   // Must match the transaction's tx_hash
  * }
+ * Any other client-supplied field (e.g. block number) is ignored.
  */
 export async function PATCH(
   req: NextRequest,
@@ -141,9 +147,8 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
-    const { status, txHash, blockNumber, blockHash } = body || {};
+    const { status, txHash } = body || {};
 
-    // Validate transaction ID
     if (!id || typeof id !== "string") {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
@@ -159,15 +164,13 @@ export async function PATCH(
       );
     }
 
-    // Require txHash for security - ensures caller actually has transaction details
-    if (typeof txHash !== "string" || !txHash.startsWith("0x")) {
+    if (typeof txHash !== "string" || !TX_HASH_PATTERN.test(txHash)) {
       return NextResponse.json(
         { error: "Valid txHash is required" },
         { status: 400 }
       );
     }
 
-    // Get authenticated user
     const supabase = await createServerSupabase();
     const {
       data: { user },
@@ -177,7 +180,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch the transaction to verify ownership and current status
     const { data: transaction, error: fetchError } = await supabaseAdminClient
       .from("transactions")
       .select("*")
@@ -191,21 +193,18 @@ export async function PATCH(
       );
     }
 
-    // Verify ownership
     if (transaction.user_id !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify txHash matches (security check)
-    if (transaction.tx_hash !== txHash) {
+    if (transaction.tx_hash?.toLowerCase() !== txHash.toLowerCase()) {
       return NextResponse.json(
         { error: "Transaction hash mismatch" },
         { status: 400 }
       );
     }
 
-    // Only update if currently in 'pending' status
-    // Don't override Circle's authoritative updates
+    // Already settled (by the webhook or a previous call): nothing to do.
     if (transaction.status !== "pending") {
       return NextResponse.json(
         {
@@ -221,50 +220,85 @@ export async function PATCH(
       );
     }
 
-    // Build metadata with blockchain confirmation details
-    const metadata = {
-      ...(transaction.metadata || {}),
-      metamask_confirmation: {
-        confirmed_at: new Date().toISOString(),
-        block_number: blockNumber,
-        block_hash: blockHash,
-      },
-    };
-
-    // Increment user credits if this is a credit transaction
-    if (transaction.direction === "credit" && transaction.credit_amount && transaction.user_id) {
-      console.log(`Transaction ${transaction.id} completed. Crediting user ${transaction.user_id} with ${transaction.credit_amount} credits.`);
-
-      const { error: creditsError } = await supabaseAdminClient.rpc("increment_credits", {
-        user_id_to_update: transaction.user_id,
-        amount_to_add: transaction.credit_amount,
-      });
-
-      if (creditsError) {
-        console.error(`CRITICAL: Failed to increment credits for user ${transaction.user_id} on transaction ${transaction.id}. Error:`, creditsError);
-        // Continue with status update even if credits fail - we can fix this manually
-      } else {
-        console.log(`Successfully credited user ${transaction.user_id}.`);
-      }
+    if (
+      transaction.direction !== "credit" ||
+      !transaction.credit_amount ||
+      !transaction.destination_address
+    ) {
+      return NextResponse.json(
+        { error: "Transaction cannot be verified on-chain" },
+        { status: 409 }
+      );
     }
 
-    // Update transaction to 'complete' status
-    const { data: updatedTransaction, error: updateError } =
+    let verification;
+    try {
+      verification = await verifyUsdcTransfer({
+        chainId: Number(transaction.chain),
+        txHash: transaction.tx_hash as `0x${string}`,
+        from: transaction.wallet_id,
+        to: transaction.destination_address,
+        minAmount: usdcToMicro(Number(transaction.amount_usdc)),
+      });
+    } catch (rpcError) {
+      console.error("[transactions/PATCH] RPC error:", rpcError);
+      return NextResponse.json(
+        { error: "Could not reach the blockchain RPC. Try again shortly." },
+        { status: 502 }
+      );
+    }
+
+    if (verification.status === "pending") {
+      return NextResponse.json(
+        { error: "Transaction is not confirmed on-chain yet" },
+        { status: 409 }
+      );
+    }
+    if (verification.status === "invalid") {
+      return NextResponse.json(
+        { error: "On-chain verification failed", reason: verification.reason },
+        { status: 422 }
+      );
+    }
+
+    const { data: outcome, error: settleError } = await supabaseAdminClient.rpc(
+      "settle_user_transaction",
+      {
+        p_transaction_id: transaction.id,
+        p_new_status: "complete",
+        p_metadata: {
+          metamask_confirmation: {
+            confirmed_at: new Date().toISOString(),
+            block_number: Number(verification.blockNumber),
+            block_hash: verification.blockHash,
+          },
+        },
+      }
+    );
+
+    if (settleError) {
+      console.error("[transactions/PATCH] Settlement error:", settleError);
+      return NextResponse.json(
+        { error: "Update failed", details: settleError.message },
+        { status: 500 }
+      );
+    }
+    if (outcome === "credited") {
+      console.log(
+        `Transaction ${transaction.id} verified on-chain. Credited user ${transaction.user_id} with ${transaction.credit_amount} credits.`
+      );
+    }
+
+    const { data: updatedTransaction, error: refetchError } =
       await supabaseAdminClient
         .from("transactions")
-        .update({
-          status: "complete",
-          metadata,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
+        .select("*")
+        .eq("id", transaction.id)
         .single();
 
-    if (updateError) {
-      console.error("[transactions/PATCH] Update error:", updateError);
+    if (refetchError || !updatedTransaction) {
       return NextResponse.json(
-        { error: "Update failed", details: updateError.message },
+        { error: "Update failed", details: refetchError?.message },
         { status: 500 }
       );
     }
@@ -274,12 +308,7 @@ export async function PATCH(
         ok: true,
         message: "Transaction status updated to complete",
         transaction: {
-          id: updatedTransaction.id,
-          status: updatedTransaction.status,
-          credits: Number(updatedTransaction.credit_amount),
-          usdcAmount: Number(updatedTransaction.amount_usdc),
-          txHash: updatedTransaction.tx_hash,
-          chainId: Number(updatedTransaction.chain),
+          ...serializeTransaction(updatedTransaction),
           updatedAt: updatedTransaction.updated_at,
           metadata: updatedTransaction.metadata,
         },

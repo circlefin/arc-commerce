@@ -43,7 +43,6 @@ import { CopyTxHashButton } from "@/components/CopyTxHashButton";
 import { format } from "date-fns";
 import { getNetworkName, getExplorerUrl } from "@/lib/utils/chain-utils";
 
-// This is a helper component for displaying rows in the receipt
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 sm:gap-4">
     <span className="text-sm text-muted-foreground">{label}</span>
@@ -51,7 +50,6 @@ const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) 
   </div>
 );
 
-// This is the corrected async server component signature
 export default async function TransactionDetailsPage(
   props: {
     params: Promise<{ txHash: string }>;
@@ -63,14 +61,12 @@ export default async function TransactionDetailsPage(
     txHash
   } = params;
 
-  // Authenticate the user
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {
     redirect("/auth/login");
   }
 
-  // Fetch the real transaction by tx_hash
   const { data: transaction, error: txError } = await supabase
     .from("transactions")
     .select("*")
@@ -81,7 +77,6 @@ export default async function TransactionDetailsPage(
     notFound();
   }
 
-  // Fetch related status events
   const { data: statusEvents } = await supabase
     .from("transaction_events")
     .select("*")

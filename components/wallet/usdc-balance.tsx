@@ -32,7 +32,6 @@ export function UsdcBalance() {
     error: usdcError,
   } = useUsdcBalance();
 
-  // If the wallet is not connected, we don't show anything.
   if (!isConnected) {
     return (
       <span className="text-muted-foreground italic">
@@ -84,6 +83,5 @@ export function UsdcBalance() {
     );
   }
 
-  // Fallback for any unhandled state
   return null;
 }

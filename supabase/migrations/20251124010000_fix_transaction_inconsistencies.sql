@@ -14,25 +14,14 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration to fix transaction table inconsistencies
--- This migration addresses:
--- 1. Standardizes chain format to use numeric chain IDs instead of string names
--- 2. Fixes wallet_id semantics for ADMIN transactions (should be source, not destination)
--- 3. Updates existing data to match the corrected schema
-
--- First, update existing ADMIN transactions to use numeric chain IDs
--- ARC-TESTNET should be 5042002
 UPDATE transactions
 SET chain = '5042002'
 WHERE chain = 'ARC-TESTNET' AND transaction_type IN ('ADMIN', 'CCTP_APPROVAL', 'CCTP_BURN', 'CCTP_MINT');
 
--- Fix wallet_id for ADMIN transactions: it should represent the source wallet address, not destination
--- For ADMIN transactions, wallet_id currently holds the destination address
--- We need to look up the actual source wallet address and swap them
+-- ADMIN rows stored the destination in wallet_id; wallet_id must hold the source.
 UPDATE transactions t
 SET
   wallet_id = aw.address,
-  -- destination_address already has the correct value
   metadata = jsonb_set(
     COALESCE(t.metadata, '{}'::jsonb),
     '{migration_note}',
@@ -43,6 +32,5 @@ WHERE t.transaction_type IN ('ADMIN', 'CCTP_APPROVAL', 'CCTP_BURN', 'CCTP_MINT')
   AND t.source_wallet_id = aw.id
   AND t.wallet_id != aw.address;
 
--- Add a comment to clarify the wallet_id column semantics
 COMMENT ON COLUMN transactions.wallet_id IS 'For USER transactions: user wallet address that sent funds. For ADMIN transactions: source admin wallet address.';
 COMMENT ON COLUMN transactions.destination_address IS 'For USER transactions: admin wallet that received funds. For ADMIN transactions: destination address receiving funds.';

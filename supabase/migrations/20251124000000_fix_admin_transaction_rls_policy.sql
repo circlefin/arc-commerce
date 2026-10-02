@@ -14,12 +14,7 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Fix RLS policy to allow authenticated users to read all transactions
--- This allows the admin dashboard to receive realtime updates for admin transactions
--- Note: Since only admin users can log in (enforced at application level),
--- it's safe to allow all authenticated users to read all transactions
-
--- Create a policy that allows any authenticated user to read all transactions
+-- Only admins can log in, so authenticated users may read every transaction.
 CREATE POLICY "Authenticated users can read all transactions"
 ON public.transactions FOR SELECT TO authenticated
 USING (true);

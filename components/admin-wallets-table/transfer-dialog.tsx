@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Database } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,8 +44,6 @@ import { transferFromAdminWallet, transferFromAdminWalletCCTP } from "@/lib/acti
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-// The Wallet type now correctly reflects that `chain` can be `string | null`,
-// matching the database schema.
 type Wallet = Database["public"]["Tables"]["admin_wallets"]["Row"];
 
 interface TransferDialogProps {
@@ -66,32 +64,29 @@ export function TransferDialog({
   const [selectedAddress, setSelectedAddress] = useState("");
   const [customAddress, setCustomAddress] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCrossChain, setIsCrossChain] = useState(false);
+  const [prevSourceWallet, setPrevSourceWallet] = useState(sourceWallet);
 
-  useEffect(() => {
+  if (sourceWallet !== prevSourceWallet) {
+    setPrevSourceWallet(sourceWallet);
     if (!sourceWallet) {
       setAmount("");
       setDestinationType("existing");
       setSelectedAddress("");
       setCustomAddress("");
-      setIsCrossChain(false);
     }
-  }, [sourceWallet]);
+  }
 
-  useEffect(() => {
-    if (destinationType === "existing" && selectedAddress && sourceWallet) {
-      const destinationWallet = otherWallets.find(
-        (wallet) => wallet.address === selectedAddress
-      );
-      // A cross-chain transfer is only possible if both wallets have a chain.
-      if (destinationWallet && sourceWallet.chain && destinationWallet.chain) {
-        setIsCrossChain(sourceWallet.chain !== destinationWallet.chain);
-      } else {
-        setIsCrossChain(false);
-      }
-    } else {
-      setIsCrossChain(false);
+  const isCrossChain = useMemo(() => {
+    if (destinationType !== "existing" || !selectedAddress || !sourceWallet) {
+      return false;
     }
+    const destinationWallet = otherWallets.find(
+      (wallet) => wallet.address === selectedAddress
+    );
+    if (destinationWallet && sourceWallet.chain && destinationWallet.chain) {
+      return sourceWallet.chain !== destinationWallet.chain;
+    }
+    return false;
   }, [selectedAddress, sourceWallet, otherWallets, destinationType]);
 
   const isFormValid = useMemo(() => {
@@ -138,8 +133,15 @@ export function TransferDialog({
         toast.error("Transfer Failed", { description: result.error });
       } else {
         toast.success("Transfer Submitted Successfully", {
-          description: `Tx: ${result.txHash?.slice(0, 15)}...`,
+          description: result.txHash
+            ? `Tx: ${result.txHash.slice(0, 15)}...`
+            : undefined,
         });
+        if (result.warning) {
+          toast.warning("Transaction history not saved", {
+            description: result.warning,
+          });
+        }
         onClose();
       }
     } catch {

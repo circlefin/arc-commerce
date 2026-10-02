@@ -30,10 +30,8 @@ export async function AuthButton() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    // Check if the logged-in user is the admin.
     const isAdmin = user.email === 'admin@admin.com';
 
-    // Only fetch credits if the user is NOT the admin.
     let initialCredits = 0;
     if (!isAdmin) {
       const { data: creditsData } = await supabase

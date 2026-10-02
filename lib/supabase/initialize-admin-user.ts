@@ -19,12 +19,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// These environment variables must be available on your server.
-// You should have them in a .env.local file for local development.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SECRET_KEY;
 
-// A server-side-only, admin client for Supabase.
 let adminAuthClient: SupabaseClient | null = null;
 
 if (supabaseUrl && supabaseServiceRoleKey) {
@@ -48,8 +45,6 @@ const createAdminUserIfNotExists = async () => {
   const adminEmail = "admin@admin.com";
   const adminPassword = "123456";
 
-  // We call our custom database function via RPC (Remote Procedure Call).
-  // This is a single, fast, and scalable database query.
   const { data: adminUserExists, error: rpcError } = await adminAuthClient.rpc(
     "check_user_exists",
     { user_email: adminEmail }
@@ -60,7 +55,6 @@ const createAdminUserIfNotExists = async () => {
     const errorCode = rpcError.code || "Unknown code";
     const errorDetails = rpcError.details || "";
 
-    // Check if it's a network/connection error
     if (
       errorMessage.includes("invalid response") ||
       errorMessage.includes("fetch failed") ||
@@ -88,7 +82,6 @@ const createAdminUserIfNotExists = async () => {
     return;
   }
 
-  // If the RPC call returns false, we create the user.
   console.log(
     `Admin user not found. Creating user with email ${adminEmail}...`
   );
@@ -96,7 +89,6 @@ const createAdminUserIfNotExists = async () => {
     await adminAuthClient.auth.admin.createUser({
       email: adminEmail,
       password: adminPassword,
-      // Automatically confirm the user's email
       email_confirm: true,
     });
 
@@ -110,6 +102,4 @@ const createAdminUserIfNotExists = async () => {
   }
 };
 
-// This is the key: we call the function immediately.
-// When this file is imported, this function will run.
 createAdminUserIfNotExists();

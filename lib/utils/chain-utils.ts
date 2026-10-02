@@ -18,9 +18,6 @@
 
 import { SupportedChainId, CHAIN_TO_CHAIN_NAME } from "@/lib/chains";
 
-/**
- * Converts a chain ID (stored as string in DB) to a human-readable network name
- */
 export function getNetworkName(chainId: string | number): string {
   const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : chainId;
 
@@ -31,17 +28,11 @@ export function getNetworkName(chainId: string | number): string {
   return CHAIN_TO_CHAIN_NAME[numericChainId] || `Chain ${chainId}`;
 }
 
-/**
- * Converts a chain name (like "ARC-TESTNET") to numeric chain ID
- */
 export function chainNameToId(chainName: string): number | undefined {
   const chainKey = chainName.replace(/-/g, '_');
   return SupportedChainId[chainKey as keyof typeof SupportedChainId];
 }
 
-/**
- * Converts a numeric chain ID to chain name (like "ARC-TESTNET")
- */
 export function chainIdToName(chainId: number): string | undefined {
   const chainIdToNameMap: Record<number, string> = {
     [SupportedChainId.ETH_SEPOLIA]: "ETH-SEPOLIA",
@@ -52,9 +43,6 @@ export function chainIdToName(chainId: number): string | undefined {
   return chainIdToNameMap[chainId];
 }
 
-/**
- * Gets explorer URL for a transaction hash on a given chain
- */
 export function getExplorerUrl(chainId: string | number, txHash?: string, address?: string): string | null {
   const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : chainId;
 

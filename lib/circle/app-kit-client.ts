@@ -27,8 +27,12 @@ export function getAppKit(): AppKit {
 }
 
 export function createAdapter() {
-  return createCircleWalletsAdapter({
-    apiKey: process.env.CIRCLE_API_KEY!,
-    entitySecret: process.env.CIRCLE_ENTITY_SECRET!,
-  });
+  const apiKey = process.env.CIRCLE_API_KEY;
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET;
+  if (!apiKey || !entitySecret) {
+    throw new Error(
+      "CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET must be set to use Circle wallets."
+    );
+  }
+  return createCircleWalletsAdapter({ apiKey, entitySecret });
 }

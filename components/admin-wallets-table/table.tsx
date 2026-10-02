@@ -24,12 +24,8 @@ import {
   ColumnDef,
   ColumnFiltersState,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   SortingState,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -76,7 +72,7 @@ import {
 } from "@/lib/actions/admin-wallets";
 import { AdminWalletsToolbar } from "@/components/admin-wallets-table/toolbar";
 import { Database } from "@/types/supabase";
-import { ConfirmableAction } from "@/components/admin-wallets-table/columns";
+import { ConfirmableAction, features } from "@/components/admin-wallets-table/columns";
 import { TransferDialog } from "@/components/admin-wallets-table/transfer-dialog";
 import { BalanceDialog } from "@/components/admin-wallets-table/balance-dialog";
 
@@ -88,9 +84,9 @@ const SUPPORTED_CHAINS = [
   { id: "BASE-SEPOLIA", name: "Base Sepolia" },
 ];
 
-interface AdminWalletsTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+interface AdminWalletsTableProps {
+  columns: ColumnDef<typeof features, Wallet>[];
+  data: Wallet[];
 }
 
 function CreateWalletSubmitButton({ isFormValid }: { isFormValid: boolean }) {
@@ -109,10 +105,10 @@ function CreateWalletSubmitButton({ isFormValid }: { isFormValid: boolean }) {
   );
 }
 
-export function AdminWalletsTable<TData, TValue>({
+export function AdminWalletsTable({
   columns,
   data,
-}: AdminWalletsTableProps<TData, TValue>) {
+}: AdminWalletsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] =
     useState<ColumnFiltersState>([]);
@@ -150,17 +146,13 @@ export function AdminWalletsTable<TData, TValue>({
     },
   };
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data,
     columns,
-    filterFns: { dateBetween: () => true },
     state: { sorting, columnFilters },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     meta: {
       openConfirmationDialog: (wallet: Wallet, action: ConfirmableAction) => {
         setConfirmationState({ wallet, action });
@@ -188,12 +180,10 @@ export function AdminWalletsTable<TData, TValue>({
   };
 
   const otherWallets = useMemo(
-    () => (data as Wallet[]).filter((w) => w.id !== transferSourceWallet?.id),
+    () => data.filter((w) => w.id !== transferSourceWallet?.id),
     [data, transferSourceWallet]
   );
 
-  // We explicitly check that `newWalletBlockchain` is not an empty string.
-  // This ensures the expression always returns a true boolean.
   const isCreateFormValid = useMemo(() => {
     return newWalletLabel.trim().length >= 3 && newWalletBlockchain !== "";
   }, [newWalletLabel, newWalletBlockchain]);
@@ -305,7 +295,7 @@ export function AdminWalletsTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,

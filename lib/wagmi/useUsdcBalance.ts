@@ -33,9 +33,6 @@ export interface UsdcBalanceResult {
   unsupported: boolean;
 }
 
-/**
- * Reads the connected wallet's USDC balance on the current chain (if supported).
- */
 export function useUsdcBalance(): UsdcBalanceResult {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();

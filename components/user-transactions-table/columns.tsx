@@ -18,7 +18,24 @@
 
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import {
+  ColumnDef,
+  columnFilteringFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  constructFilterFn,
+  filterFn_includesString,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  sortFn_datetime,
+  sortFn_text,
+  tableFeatures,
+} from "@tanstack/react-table";
+import { startOfDay, endOfDay, isValid } from "date-fns";
 
 export interface TransactionRow {
   id: string;
@@ -36,7 +53,52 @@ import { ArrowUpDown, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { getNetworkName, getExplorerUrl } from "@/lib/utils/chain-utils";
 
-export const columns: ColumnDef<TransactionRow>[] = [
+const dateBetweenFilterFn = constructFilterFn({
+  filter: (
+    rowDateRaw: string | Date | undefined,
+    filterValue: [Date | undefined, Date | undefined]
+  ) => {
+  if (!Array.isArray(filterValue)) return true;
+
+  const [from, to] = filterValue;
+  if (!from && !to) return true;
+
+  if (!rowDateRaw) return false;
+
+  const date = new Date(rowDateRaw);
+  if (!isValid(date)) return false;
+
+  const fromDate = from ? startOfDay(from) : null;
+  const toDate = to ? endOfDay(to) : null;
+
+  if (fromDate && toDate) return date >= fromDate && date <= toDate;
+  if (fromDate) return date >= fromDate;
+  if (toDate) return date <= toDate;
+  return true;
+  },
+});
+
+export const features = tableFeatures({
+  columnFilteringFeature,
+  rowSortingFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  filterFns: {
+    includesString: filterFn_includesString,
+    dateBetween: dateBetweenFilterFn,
+  },
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    basic: sortFn_basic,
+    datetime: sortFn_datetime,
+    text: sortFn_text,
+  },
+});
+
+export const columns: ColumnDef<typeof features, TransactionRow>[] = [
   {
     accessorKey: "date",
     header: ({ column }) => {
@@ -105,7 +167,6 @@ export const columns: ColumnDef<TransactionRow>[] = [
     cell: ({ row }) => {
       const status = row.original.status.toUpperCase();
 
-      // Define status-specific styling for better visibility in both themes
       const getStatusStyle = () => {
         switch (status) {
           case "COMPLETE":

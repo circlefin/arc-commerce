@@ -14,7 +14,7 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Remove admin_transactions from supabase_realtime publication (table no longer exists)
+-- The table was dropped, so remove it from the realtime publication.
 DO $$
 BEGIN
   IF EXISTS (

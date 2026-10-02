@@ -21,6 +21,7 @@
 import { AlertTriangle, Info } from "lucide-react";
 import { useNetworkSupport } from "@/lib/wagmi/useNetworkSupport";
 import { DEFAULT_CHAIN } from "@/lib/wagmi/config";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -38,72 +39,38 @@ export function UnsupportedNetworkNotice() {
 
   const isOnDefaultChain = currentChainId === DEFAULT_CHAIN.id;
 
-  if (!isConnected || dismissed) return null;
+  if (!isConnected || dismissed || (isSupported && isOnDefaultChain)) {
+    return null;
+  }
 
-  if (!isSupported) {
-    return (
-      <div className="w-full bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 px-4 py-3 text-sm flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 shrink-0" />
-        <div className="flex-1">
-          <div className="font-medium mb-0.5">Unsupported Network</div>
-          <div className="opacity-90">
-            {unsupportedReason ||
+  return (
+    <Alert variant={isSupported ? "default" : "destructive"} className="w-96">
+      {isSupported ? <Info /> : <AlertTriangle />}
+      <AlertTitle>
+        {isSupported ? `Switch to ${DEFAULT_CHAIN.name}` : "Unsupported Network"}
+      </AlertTitle>
+      <AlertDescription>
+        <p>
+          {isSupported
+            ? `This app works best on ${DEFAULT_CHAIN.name}. Please switch to continue.`
+            : unsupportedReason ||
               "You are connected to a network that this app does not support."}
-          </div>
-          <div className="mt-2 flex gap-2">
-            {canSwitch && (
-              <Button
-                size="sm"
-                onClick={() => trySwitch(DEFAULT_CHAIN.id)}
-                disabled={isSwitching}
-              >
-                {isSwitching ? "Switching..." : `Switch to ${DEFAULT_CHAIN.name}`}
-              </Button>
-            )}
+        </p>
+        <div className="mt-2 flex gap-2">
+          {canSwitch && (
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => setDismissed(true)}
+              onClick={() => trySwitch(DEFAULT_CHAIN.id)}
+              disabled={isSwitching}
             >
-              Dismiss
+              {isSwitching ? "Switching..." : `Switch to ${DEFAULT_CHAIN.name}`}
             </Button>
-          </div>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setDismissed(true)}>
+            Dismiss
+          </Button>
         </div>
-      </div>
-    );
-  }
-
-  if (!isOnDefaultChain) {
-    return (
-      <div className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 px-4 py-3 text-sm flex items-start gap-3">
-        <Info className="h-5 w-5 shrink-0" />
-        <div className="flex-1">
-          <div className="font-medium mb-0.5">Switch to {DEFAULT_CHAIN.name}</div>
-          <div className="opacity-90">
-            This app works best on {DEFAULT_CHAIN.name}. Please switch to continue.
-          </div>
-          <div className="mt-2 flex gap-2">
-            {canSwitch && (
-              <Button
-                size="sm"
-                onClick={() => trySwitch(DEFAULT_CHAIN.id)}
-                disabled={isSwitching}
-              >
-                {isSwitching ? "Switching..." : `Switch to ${DEFAULT_CHAIN.name}`}
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDismissed(true)}
-            >
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+      </AlertDescription>
+    </Alert>
+  );
 }

@@ -19,10 +19,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// This import triggers your admin user creation script on server startup.
+// Side-effect imports: bootstrap the admin user and platform wallet on server start.
 import "@/lib/supabase/initialize-admin-user";
 
-// Import the new Circle platform operator wallet creation script
 import "@/lib/circle/initialize-admin-wallet";
 
 export async function createClient() {
@@ -30,27 +29,19 @@ export async function createClient() {
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
-      // This is the corrected cookies object that resolves the deprecation warning.
       cookies: {
-        // The new `getAll` method should return all cookies.
-        // The `cookies()` function from `next/headers` provides a `getAll()` method that
-        // returns cookies in the exact format needed: an array of { name, value }.
         getAll() {
           return cookieStore.getAll();
         },
-        // The new `setAll` method receives an array of cookies to set.
-        // We need to loop through this array and call `cookieStore.set()` for each one.
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
           } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // Safe to ignore: middleware refreshes the session.
           }
         },
       },

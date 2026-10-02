@@ -14,17 +14,10 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- This migration addresses the "Function Search Path Mutable" security warning
--- by explicitly setting a secure, empty search_path for our trigger functions.
--- This prevents potential privilege escalation attacks by forcing all object
--- references within the functions to be schema-qualified.
-
--- Harden the handle_updated_at function
+-- Pin an empty search_path on the trigger functions to block privilege escalation.
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
--- This is the critical security fix.
--- It isolates the function from the caller's search_path.
 SET search_path = ''
 AS $$
 BEGIN
@@ -33,17 +26,12 @@ BEGIN
 END;
 $$;
 
--- Harden the log_transaction_status_change function
 CREATE OR REPLACE FUNCTION public.log_transaction_status_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
--- This is the critical security fix.
--- It isolates the function from the caller's search_path.
 SET search_path = ''
 AS $$
 BEGIN
-    -- We must now use fully qualified names because the search_path is empty.
-    -- e.g., public.transaction_events instead of just transaction_events.
     IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
         INSERT INTO public.transaction_events (transaction_id, old_status, new_status)
         VALUES (NEW.id, OLD.status, NEW.status);

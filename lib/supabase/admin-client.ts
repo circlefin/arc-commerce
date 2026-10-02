@@ -18,10 +18,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-/**
- * Server-side admin Supabase client using the service role key.
- * Never import this into client components.
- */
+// Service-role client. Never import into client components.
 export const supabaseAdminClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY,

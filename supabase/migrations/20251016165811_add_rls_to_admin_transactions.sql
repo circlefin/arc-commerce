@@ -14,10 +14,8 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Enable Row Level Security on the table if it's not already.
 ALTER TABLE public.admin_transactions ENABLE ROW LEVEL SECURITY;
 
--- Create a policy that allows any logged-in user to read the transactions.
 CREATE POLICY "Allow authenticated users to read admin transactions"
 ON public.admin_transactions
 FOR SELECT

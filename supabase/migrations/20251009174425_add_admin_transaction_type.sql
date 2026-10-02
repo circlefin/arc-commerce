@@ -14,11 +14,6 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- This migration introduces a new ENUM type to classify transactions
--- and adds a 'type' column to the admin_transactions table to use it.
-
--- Step 1: Create the new ENUM type for the transaction type.
--- This defines the allowed values for the new 'type' column.
 CREATE TYPE public.admin_transaction_type AS ENUM (
     'STANDARD',
     'CCTP_APPROVAL',
@@ -26,13 +21,9 @@ CREATE TYPE public.admin_transaction_type AS ENUM (
     'CCTP_MINT'
 );
 
--- Add a comment for clarity on the new type.
 COMMENT ON TYPE public.admin_transaction_type IS 'Defines the types of administrative transactions, distinguishing between standard transfers and multi-step CCTP operations.';
 
-
--- Step 2: Alter the existing `admin_transactions` table to add the new column.
 ALTER TABLE public.admin_transactions
 ADD COLUMN type public.admin_transaction_type NOT NULL DEFAULT 'STANDARD';
 
--- Add a comment to the new column for future reference.
 COMMENT ON COLUMN public.admin_transactions.type IS 'The type of the transaction (e.g., STANDARD, CCTP_APPROVAL, CCTP_BURN, CCTP_MINT).';

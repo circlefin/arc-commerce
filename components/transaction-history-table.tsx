@@ -21,22 +21,16 @@
 import { useState, useEffect } from "react";
 import {
   ColumnFiltersState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   SortingState,
-  useReactTable,
-  FilterFn,
+  useTable,
 } from "@tanstack/react-table";
-import { startOfDay, endOfDay, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { TransactionRow } from "@/components/user-transactions-table/columns";
 import { DataTable } from "@/components/user-transactions-table/table";
-import { columns } from "@/components/user-transactions-table/columns";
+import { columns, features } from "@/components/user-transactions-table/columns";
 
 interface ApiTransaction {
   id: string;
@@ -50,35 +44,10 @@ interface ApiTransaction {
 }
 
 interface TransactionHistoryProps {
-  showHeader?: boolean;      // optionally render heading / back button
-  backHref?: string;         // backlink destination if header shown
+  showHeader?: boolean;
+  backHref?: string;
   className?: string;
 }
-
-const dateBetweenFilterFn: FilterFn<TransactionRow> = (
-  row,
-  columnId,
-  filterValue: [Date | undefined, Date | undefined]
-) => {
-  if (!Array.isArray(filterValue)) return true;
-
-  const [from, to] = filterValue;
-  if (!from && !to) return true;
-
-  const rowDateRaw = row.getValue<string | Date>(columnId);
-  if (!rowDateRaw) return false;
-
-  const date = new Date(rowDateRaw);
-  if (!isValid(date)) return false;
-
-  const fromDate = from ? startOfDay(from) : null;
-  const toDate = to ? endOfDay(to) : null;
-
-  if (fromDate && toDate) return date >= fromDate && date <= toDate;
-  if (fromDate) return date >= fromDate;
-  if (toDate) return date <= toDate;
-  return true;
-};
 
 export function TransactionHistory({
   showHeader = false,
@@ -120,7 +89,6 @@ export function TransactionHistory({
 
     load();
 
-    // Realtime subscription (INSERT + UPDATE on transactions)
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -185,17 +153,13 @@ export function TransactionHistory({
     };
   }, []);
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data,
     columns,
-    filterFns: { dateBetween: dateBetweenFilterFn },
     state: { sorting, columnFilters },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   });
 
   return (

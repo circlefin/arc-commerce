@@ -29,12 +29,12 @@ export type { AdminTransaction };
 
 export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
   const [transactions, setTransactions] = useState(initialData);
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
   const [adminWalletAddresses, setAdminWalletAddresses] = useState<string[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  // Fetch admin wallet addresses for filtering USER transactions using server action
   useEffect(() => {
     async function fetchAdminWallets() {
       console.log("[Realtime] Fetching admin wallet addresses via server action...");
@@ -53,18 +53,14 @@ export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
     fetchAdminWallets();
   }, []);
 
-  // Sync initialData to state when it changes (from router.refresh())
-  useEffect(() => {
-    console.log("[Realtime] Syncing initialData to state");
+  if (initialData !== prevInitialData) {
+    setPrevInitialData(initialData);
     setTransactions(initialData);
-  }, [initialData]);
+  }
 
-  // Set up realtime subscription (only re-subscribe if admin wallets or loading state changes)
   useEffect(() => {
     console.log("[Realtime] Setting up subscription. Admin wallet addresses:", adminWalletAddresses.length, "Loading:", isLoadingAddresses);
 
-    // Don't set up subscription until admin wallet addresses are loaded
-    // This prevents premature subscription attempts that will timeout
     if (isLoadingAddresses) {
       console.log("[Realtime] Waiting for admin wallet addresses to load before subscribing...");
       return;
@@ -75,7 +71,6 @@ export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
 
-    // Wait for authentication before subscribing
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user || cancelled) {
         console.log("[Realtime] No authenticated user, skipping subscription");
@@ -93,14 +88,12 @@ export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
             event: "*",
             schema: "public",
             table: "transactions",
-            // Listen to all transactions - we'll filter client-side
           },
           (payload) => {
             console.log("[Realtime] Update received:", payload);
 
           const transaction = payload.new as AdminTransaction;
 
-          // Filter: include if it's NOT a USER transaction, OR if it's a USER transaction to an admin wallet
           const isAdminTransaction = transaction.transaction_type !== "USER";
           const isUserToAdminWallet =
             transaction.transaction_type === "USER" &&
@@ -123,15 +116,11 @@ export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
           if (payload.eventType === "INSERT") {
             const newTransaction = payload.new as AdminTransaction;
 
-            // 1. Immediately add the new row with "N/A" for instant UI feedback.
             setTransactions((current) => [
               { ...newTransaction, source_wallet: { label: "Loading..." } },
               ...current,
             ]);
 
-            // 2. Trigger a soft refresh of the page's data.
-            //    Next.js will re-fetch the server component data in the background
-            //    and seamlessly update the table with the complete, joined data.
             router.refresh();
 
             toast.info("New transaction initiated.", {
@@ -149,7 +138,6 @@ export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
               transactionId: newTx.id,
             });
 
-            // Update the transaction in state with all new fields (not just status)
             setTransactions((current) =>
               current.map((tx) =>
                 tx.id === newTx.id
@@ -158,7 +146,6 @@ export function useRealtimeAdminTransactions(initialData: AdminTransaction[]) {
               )
             );
 
-            // Show toast notifications only if status actually changed
             const statusChanged = !oldTx?.status || oldTx.status !== newTx.status;
             if (statusChanged) {
               if (newTx.status === "confirmed") {

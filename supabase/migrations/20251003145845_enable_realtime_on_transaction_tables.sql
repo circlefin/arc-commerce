@@ -14,24 +14,11 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Enable Realtime on Transaction Tables
--- This script enables the Supabase Realtime feature for the `admin_transactions`,
--- `transactions`, and `transaction_events` tables. This will allow clients
--- to subscribe to database changes (INSERT, UPDATE, DELETE) on these tables.
-
--- Step 1: Add the tables to the `supabase_realtime` publication.
--- This tells PostgreSQL to send changes from these tables to the Realtime broadcasting service.
-
 ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_transactions;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.transaction_events;
 
-
--- Step 2: Set the REPLICA IDENTITY for each table to FULL.
--- This ensures that when an UPDATE or DELETE event occurs, the broadcasted
--- message contains the complete data of the old row, which is essential for
--- building responsive, real-time user interfaces.
-
+-- REPLICA IDENTITY FULL so UPDATE and DELETE events carry the full old row.
 ALTER TABLE public.admin_transactions REPLICA IDENTITY FULL;
 ALTER TABLE public.transactions REPLICA IDENTITY FULL;
 ALTER TABLE public.transaction_events REPLICA IDENTITY FULL;

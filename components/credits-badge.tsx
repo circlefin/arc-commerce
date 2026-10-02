@@ -27,20 +27,16 @@ interface CreditsBadgeProps {
   userId: string;
 }
 
-// This component receives the initial credit balance from the server,
-// then subscribes to real-time updates to keep the display in sync.
 export function CreditsBadge({ initialCredits, userId }: CreditsBadgeProps) {
   const [credits, setCredits] = useState(initialCredits);
   const [supabase] = useState(() => createClient());
 
-  // Format the number for better readability (e.g., 1,000.50)
   const formattedBalance = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(credits);
 
   useEffect(() => {
-    // Fetch current credits from the database
     const fetchCredits = async () => {
       const { data, error } = await supabase
         .from("credits")
@@ -56,23 +52,20 @@ export function CreditsBadge({ initialCredits, userId }: CreditsBadgeProps) {
       }
     };
 
-    // Create a channel for real-time updates
     const channel = supabase
       .channel(`credits-user-${userId}`)
       .on(
         "postgres_changes",
         {
-          event: "*", // Listen to all events (INSERT, UPDATE, DELETE)
+          event: "*",
           schema: "public",
           table: "credits",
-          filter: `user_id=eq.${userId}`, // Listen only to changes for this user
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          // When an update is received, get the new credits value
           if (payload.new && typeof payload.new === "object" && "credits" in payload.new) {
             const newCredits = payload.new.credits as number;
             console.log("Real-time credit event received:", payload.eventType, "New credits:", newCredits);
-            // Update the component's state to re-render with the new value
             setCredits(newCredits);
           } else {
             console.warn("Received payload without expected credits field:", payload);
@@ -83,15 +76,13 @@ export function CreditsBadge({ initialCredits, userId }: CreditsBadgeProps) {
         console.log("Credits subscription status:", status);
       });
 
-    // Poll for updates every 10 seconds as a fallback
     const pollInterval = setInterval(fetchCredits, 10000);
 
-    // Cleanup function: Unsubscribe from the channel when the component unmounts
     return () => {
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [userId, supabase]); // Re-run the effect only if the userId changes
+  }, [userId, supabase]);
 
   return <Badge variant="outline">Credits: {formattedBalance}</Badge>;
 }

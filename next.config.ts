@@ -18,6 +18,12 @@
 
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // Circle SDKs lazy-load optional Solana peers; let Node resolve them at runtime
+  serverExternalPackages: [
+    "@circle-fin/adapter-circle-wallets",
+    "@circle-fin/developer-controlled-wallets",
+  ],
+};
 
 export default nextConfig;

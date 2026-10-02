@@ -14,11 +14,9 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- 1. Create Custom Types
 CREATE TYPE transaction_direction AS ENUM ('credit', 'debit');
 CREATE TYPE transaction_status AS ENUM ('pending', 'confirmed', 'failed', 'complete');
 
--- 2. Create the `transactions` table
 CREATE TABLE public.transactions (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -38,14 +36,12 @@ CREATE TABLE public.transactions (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- 3. Create Constraints and Indexes
 ALTER TABLE public.transactions ADD CONSTRAINT transactions_chain_tx_hash_key UNIQUE (chain, tx_hash);
 ALTER TABLE public.transactions ADD CONSTRAINT transactions_idempotency_key_key UNIQUE (idempotency_key);
 CREATE INDEX idx_transactions_user_id ON public.transactions(user_id);
 CREATE INDEX idx_transactions_status ON public.transactions(status);
 CREATE INDEX idx_transactions_created_at ON public.transactions(created_at);
 
--- 4. Create the `transaction_events` table for audit trail
 CREATE TABLE public.transaction_events (
     id bigserial PRIMARY KEY,
     transaction_id uuid NOT NULL REFERENCES public.transactions(id) ON DELETE CASCADE,
@@ -55,7 +51,6 @@ CREATE TABLE public.transaction_events (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- 5. Create Trigger Functions
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -78,8 +73,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- 6. Attach Triggers
 CREATE TRIGGER on_transactions_update
 BEFORE UPDATE ON public.transactions
 FOR EACH ROW
@@ -90,28 +83,21 @@ AFTER INSERT OR UPDATE ON public.transactions
 FOR EACH ROW
 EXECUTE FUNCTION public.log_transaction_status_change();
 
--- 7. Enable RLS and Define OPTIMIZED Policies
-
--- === TRANSACTIONS TABLE ===
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
--- Optimized SELECT policy for transactions
 CREATE POLICY "Allow read access to owners and service role"
 ON public.transactions FOR SELECT TO authenticated, service_role
 USING (
     (user_id = (select auth.uid())) OR ((select auth.role()) = 'service_role')
 );
 
--- Optimized INSERT/UPDATE/DELETE policy for transactions
 CREATE POLICY "Allow full modification for service role"
 ON public.transactions FOR ALL TO service_role
 USING ( (select auth.role()) = 'service_role' )
 WITH CHECK ( (select auth.role()) = 'service_role' );
 
--- === TRANSACTION_EVENTS TABLE ===
 ALTER TABLE public.transaction_events ENABLE ROW LEVEL SECURITY;
 
--- Optimized SELECT policy for transaction_events
 CREATE POLICY "Allow read access to event owners and service role"
 ON public.transaction_events FOR SELECT TO authenticated, service_role
 USING (
@@ -122,7 +108,6 @@ USING (
     )
 );
 
--- Optimized INSERT/UPDATE/DELETE policy for transaction_events
 CREATE POLICY "Allow full modification for service role on events"
 ON public.transaction_events FOR ALL TO service_role
 USING ( (select auth.role()) = 'service_role' )

@@ -14,22 +14,16 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- This script idempotently ensures that the 'admin_transactions' table
--- is configured to broadcast INSERT, UPDATE, and DELETE events via Realtime.
-
+-- Re-add the table to the publication so it broadcasts INSERT, UPDATE and DELETE.
 DO $$
 BEGIN
-  -- First, check if the table is already a member of the publication.
   IF EXISTS (
     SELECT 1
     FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime' AND tablename = 'admin_transactions'
   ) THEN
-    -- If it is, remove it. This is necessary to reset its publication properties.
     ALTER PUBLICATION supabase_realtime DROP TABLE public.admin_transactions;
   END IF;
 END $$;
 
--- Now, add the table back to the publication. This applies the publication's
--- default rules, which include broadcasting INSERT, UPDATE, and DELETE events.
 ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_transactions;

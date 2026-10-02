@@ -52,56 +52,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_transactions: {
-        Row: {
-          amount: number
-          asset: string
-          chain: string
-          circle_transaction_id: string
-          created_at: string
-          destination_address: string
-          id: string
-          source_wallet_id: string
-          status: Database["public"]["Enums"]["admin_transaction_status"]
-          type: Database["public"]["Enums"]["admin_transaction_type"]
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          asset?: string
-          chain: string
-          circle_transaction_id: string
-          created_at?: string
-          destination_address: string
-          id?: string
-          source_wallet_id: string
-          status?: Database["public"]["Enums"]["admin_transaction_status"]
-          type?: Database["public"]["Enums"]["admin_transaction_type"]
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          asset?: string
-          chain?: string
-          circle_transaction_id?: string
-          created_at?: string
-          destination_address?: string
-          id?: string
-          source_wallet_id?: string
-          status?: Database["public"]["Enums"]["admin_transaction_status"]
-          type?: Database["public"]["Enums"]["admin_transaction_type"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_transactions_source_wallet_id_fkey"
-            columns: ["source_wallet_id"]
-            isOneToOne: false
-            referencedRelation: "admin_wallets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       admin_wallets: {
         Row: {
           address: string
@@ -135,6 +85,24 @@ export type Database = {
           status?: Database["public"]["Enums"]["admin_wallet_status"]
           supported_assets?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      credits: {
+        Row: {
+          credits: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          credits?: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          credits?: number
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -254,7 +222,9 @@ export type Database = {
           created_at?: string
           credit_amount?: number | null
           destination_address?: string | null
-          direction?: Database["public"]["Enums"]["transaction_direction"] | null
+          direction?:
+            | Database["public"]["Enums"]["transaction_direction"]
+            | null
           exchange_rate?: number | null
           fee_usdc?: number
           id?: string
@@ -276,7 +246,9 @@ export type Database = {
           created_at?: string
           credit_amount?: number | null
           destination_address?: string | null
-          direction?: Database["public"]["Enums"]["transaction_direction"] | null
+          direction?:
+            | Database["public"]["Enums"]["transaction_direction"]
+            | null
           exchange_rate?: number | null
           fee_usdc?: number
           id?: string
@@ -294,9 +266,10 @@ export type Database = {
           {
             foreignKeyName: "transactions_source_wallet_id_fkey"
             columns: ["source_wallet_id"]
+            isOneToOne: false
             referencedRelation: "admin_wallets"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
     }
@@ -304,18 +277,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_user_exists: {
-        Args: { user_email: string }
-        Returns: boolean
+      check_user_exists: { Args: { user_email: string }; Returns: boolean }
+      increment_credits: {
+        Args: { amount_to_add: number; user_id_to_update: string }
+        Returns: number
+      }
+      is_admin_user: { Args: never; Returns: boolean }
+      settle_user_transaction: {
+        Args: {
+          p_metadata?: Json
+          p_new_status: Database["public"]["Enums"]["transaction_status"]
+          p_transaction_id: string
+        }
+        Returns: string
       }
     }
     Enums: {
-      admin_transaction_status: "PENDING" | "CONFIRMED" | "FAILED"
-      admin_transaction_type: "STANDARD" | "CCTP_APPROVAL" | "CCTP_BURN" | "CCTP_MINT"
+      admin_transaction_status: "PENDING" | "CONFIRMED" | "FAILED" | "COMPLETE"
+      admin_transaction_type:
+        | "STANDARD"
+        | "CCTP_APPROVAL"
+        | "CCTP_BURN"
+        | "CCTP_MINT"
       admin_wallet_status: "ENABLED" | "DISABLED" | "ARCHIVED"
       transaction_direction: "credit" | "debit"
-      transaction_status: "pending" | "completed" | "confirmed" | "complete" | "failed"
-      transaction_type: "USER" | "ADMIN" | "CCTP_APPROVAL" | "CCTP_BURN" | "CCTP_MINT"
+      transaction_status: "pending" | "confirmed" | "complete" | "failed"
+      transaction_type:
+        | "USER"
+        | "ADMIN"
+        | "CCTP_APPROVAL"
+        | "CCTP_BURN"
+        | "CCTP_MINT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -331,12 +323,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -360,11 +352,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -385,11 +377,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -410,11 +402,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -427,11 +419,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -446,11 +438,23 @@ export const Constants = {
   },
   public: {
     Enums: {
-      admin_transaction_status: ["PENDING", "CONFIRMED", "FAILED"],
-      admin_transaction_type: ["STANDARD", "CCTP_APPROVAL", "CCTP_BURN"],
+      admin_transaction_status: ["PENDING", "CONFIRMED", "FAILED", "COMPLETE"],
+      admin_transaction_type: [
+        "STANDARD",
+        "CCTP_APPROVAL",
+        "CCTP_BURN",
+        "CCTP_MINT",
+      ],
       admin_wallet_status: ["ENABLED", "DISABLED", "ARCHIVED"],
       transaction_direction: ["credit", "debit"],
-      transaction_status: ["pending", "completed", "confirmed", "complete", "failed"],
+      transaction_status: ["pending", "confirmed", "complete", "failed"],
+      transaction_type: [
+        "USER",
+        "ADMIN",
+        "CCTP_APPROVAL",
+        "CCTP_BURN",
+        "CCTP_MINT",
+      ],
     },
   },
 } as const

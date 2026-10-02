@@ -18,19 +18,21 @@
 
 "use client";
 
-import { Table } from "@tanstack/react-table";
+import { ReactTable } from "@tanstack/react-table";
+import { Database } from "@/types/supabase";
+import { features } from "@/components/admin-wallets-table/columns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { XIcon } from "lucide-react";
 
-interface AdminWalletsToolbarProps<TData> {
-  table: Table<TData>;
+type Wallet = Database["public"]["Tables"]["admin_wallets"]["Row"];
+
+interface AdminWalletsToolbarProps {
+  table: ReactTable<typeof features, Wallet>;
 }
 
-export function AdminWalletsToolbar<TData>({
-  table,
-}: AdminWalletsToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
+export function AdminWalletsToolbar({ table }: AdminWalletsToolbarProps) {
+  const isFiltered = table.state.columnFilters.length > 0;
 
   return (
     <div className="flex items-center justify-between">

@@ -20,6 +20,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { UserDashboard } from "@/components/user-dashboard";
+import { isAdminEmail } from "@/lib/auth/admin";
+
+// Server actions invoked from this page (notably the CCTP bridge, which blocks until
+// the mint completes) inherit this limit. The platform default would cut a bridge
+// off after funds have moved but before the transaction is recorded.
+export const maxDuration = 300;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -29,16 +35,13 @@ export default async function DashboardPage() {
     error,
   } = await supabase.auth.getUser();
 
-  // 1. Ensure a user is logged in
   if (error || !user) {
     redirect("/auth/login");
   }
 
-  // 2. Perform the security check on the server
+  // Perform the security check on the server.
   // We compare the user's email with the secure environment variable.
-  const isAdmin = user.email === process.env.ADMIN_EMAIL;
+  const isAdmin = isAdminEmail(user.email);
 
-  // 3. Render the appropriate dashboard component
-  // A regular user's browser will never receive the <AdminDashboard /> component.
   return isAdmin ? <AdminDashboard /> : <UserDashboard />;
 }

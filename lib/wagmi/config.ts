@@ -49,17 +49,12 @@ const arcTestnet = {
   },
 } as const satisfies Chain;
 
-/**
- * Ordered list of supported chains shown to users.
- * Testnets are included for development; you can filter them out in prod if desired.
- */
 export const SUPPORTED_CHAINS = [
   mainnet,
   base,
   polygon,
   arbitrum,
   optimism,
-  // Testnets (optionally hide in production)
   sepolia,
   baseSepolia,
   polygonAmoy,

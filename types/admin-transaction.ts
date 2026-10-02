@@ -16,18 +16,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// Shared type for admin transactions (includes USER transactions sent to admin wallets)
 export type AdminTransaction = {
   id: string;
   circle_transaction_id: string | null;
   destination_address: string;
   amount_usdc: number;
-  amount?: number;  // For backward compatibility
+  amount?: number;
   asset: string;
   chain: string;
   status: "PENDING" | "CONFIRMED" | "FAILED" | "COMPLETE" | "pending" | "confirmed" | "complete" | "failed";
   created_at: string;
   source_wallet: { label: string } | null;
   transaction_type: "CCTP_APPROVAL" | "CCTP_BURN" | "CCTP_MINT" | "ADMIN" | "USER";
-  wallet_id?: string | null;  // For USER transactions
+  wallet_id?: string | null;
 };

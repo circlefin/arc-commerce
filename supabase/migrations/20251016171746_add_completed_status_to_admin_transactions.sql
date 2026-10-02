@@ -14,5 +14,4 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Add 'COMPLETED' to the admin_transaction_status enum if it doesn't already exist.
 ALTER TYPE public.admin_transaction_status ADD VALUE IF NOT EXISTS 'COMPLETED';

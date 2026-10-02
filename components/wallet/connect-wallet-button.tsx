@@ -18,7 +18,8 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useIsClient } from "@/hooks/use-is-client";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
@@ -30,11 +31,8 @@ export function ConnectWalletButton() {
   const { connect, connectors, status: connectStatus } = useConnect();
   const { disconnect } = useDisconnect();
 
-  const [isClient, setIsClient] = useState(false);
+  const isClient = useIsClient();
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const walletConnector = useMemo(
     () => connectors.find((c) => c.id === "injected"),
@@ -45,7 +43,6 @@ export function ConnectWalletButton() {
     return addr.slice(0, 6) + "..." + addr.slice(-4);
   }
 
-  // On the server, and for the initial client render, show a neutral placeholder.
   if (!isClient) {
     return (
       <Button variant="outline" disabled size="sm">
@@ -54,7 +51,6 @@ export function ConnectWalletButton() {
     );
   }
 
-  // From this point on, we are on the client and can safely check window.ethereum
   if (!(window as { ethereum?: unknown }).ethereum) {
     return (
       <Button

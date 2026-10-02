@@ -14,24 +14,16 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Remove 'completed' status and standardize on 'complete'
--- This migration removes the 'completed' status from the transaction_status enum
--- and updates any existing transactions using 'completed' to use 'complete' instead
-
--- Step 1: Update any existing transactions with 'completed' status to 'complete'
 UPDATE public.transactions
 SET status = 'complete'
 WHERE status = 'completed';
 
--- Step 2: Remove 'completed' from the transaction_status enum
--- We need to create a new enum without 'completed', then swap it in
+-- Postgres cannot drop an enum value, so swap in a replacement type.
 CREATE TYPE transaction_status_new AS ENUM ('pending', 'confirmed', 'complete', 'failed');
 
--- Step 3: Drop the default constraint temporarily
 ALTER TABLE public.transactions
   ALTER COLUMN status DROP DEFAULT;
 
--- Step 4: Update all tables using the transaction_status enum
 ALTER TABLE public.transactions
   ALTER COLUMN status TYPE transaction_status_new
   USING status::text::transaction_status_new;
@@ -48,13 +40,10 @@ ALTER TABLE public.transaction_webhook_events
   ALTER COLUMN mapped_status TYPE transaction_status_new
   USING mapped_status::text::transaction_status_new;
 
--- Step 5: Restore the default value for transactions table
 ALTER TABLE public.transactions
   ALTER COLUMN status SET DEFAULT 'pending'::transaction_status_new;
 
--- Step 6: Drop the old enum and rename the new one
 DROP TYPE transaction_status CASCADE;
 ALTER TYPE transaction_status_new RENAME TO transaction_status;
 
--- Add a comment to document the change
 COMMENT ON TYPE transaction_status IS 'Transaction status enum: pending (initial), confirmed (Circle confirmed), complete (on-chain confirmed), failed';

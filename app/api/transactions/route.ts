@@ -16,9 +16,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isAddress } from "viem";
 import { supabaseAdminClient } from "@/lib/supabase/admin-client";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { SUPPORTED_CHAINS } from "@/lib/chains";
+import { USDC_PER_CREDIT, isPriceConsistent } from "@/lib/payments/credits";
+import {
+  getPrimaryDestinationAddress,
+  isAdminWalletAddress,
+} from "@/lib/payments/destination";
+import { serializeTransaction } from "@/lib/payments/serialize-transaction";
+import { TX_HASH_PATTERN } from "@/lib/payments/tx-hash";
 
 interface TransactionEvent {
   transaction_id: string;
@@ -40,55 +49,81 @@ interface TransactionWebhookEvent {
  * POST /api/transactions
  * Records a (credit) top-up transaction after it has been broadcast on-chain.
  *
+ * The row is created as `pending` and no credits are granted here. Credits are
+ * only granted once the transfer is verified on-chain (PATCH /api/transactions/[id])
+ * or reported by Circle's signed webhook.
+ *
  * Expected JSON body:
  * {
  *   "credits": number,
- *   "usdcAmount": number,          // decimal USDC (e.g. 12.34)
- *   "txHash": string,              // 0x...
- *   "chainId": number,
+ *   "usdcAmount": number,          // decimal USDC; must equal credits * USDC_PER_CREDIT
+ *   "txHash": string,              // 0x + 64 hex
+ *   "chainId": number,             // one of SUPPORTED_CHAINS
  *   "walletAddress": string,       // sender wallet 0x...
- *   "destinationAddress": string   // admin wallet recipient 0x... (optional)
+ *   "destinationAddress": string   // an admin wallet 0x... (optional; defaults to the primary one)
  * }
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { credits, usdcAmount, txHash, chainId, walletAddress, destinationAddress } = body || {};
-
-    if (
-      typeof credits !== "number" ||
-      credits <= 0 ||
-      typeof usdcAmount !== "number" ||
-      usdcAmount <= 0 ||
-      typeof txHash !== "string" ||
-      !txHash.startsWith("0x") ||
-      typeof chainId !== "number" ||
-      typeof walletAddress !== "string" ||
-      !walletAddress.startsWith("0x")
-    ) {
-      return new Response(JSON.stringify({ error: "Invalid payload" }), {
-        status: 400,
-      });
-    }
-
-    // Get authenticated user via regular server client (anon key + cookies)
     const supabase = await createServerSupabase();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Build insert row. The RLS policy only allows service_role inserts,
-    // so we use the admin (service role) client here.
-    // Exchange rate: 1 credit = X USDC (currently 0.01)
-    const EXCHANGE_RATE_USDC_PER_CREDIT = 0.01;
-    const idempotencyKey = `${chainId}:${txHash}`;
+    const body = await req.json().catch(() => ({}));
+    const { credits, usdcAmount, txHash, chainId, walletAddress, destinationAddress } = body || {};
 
+    if (
+      typeof credits !== "number" ||
+      !Number.isFinite(credits) ||
+      credits <= 0 ||
+      typeof usdcAmount !== "number" ||
+      !Number.isFinite(usdcAmount) ||
+      usdcAmount <= 0 ||
+      typeof txHash !== "string" ||
+      !TX_HASH_PATTERN.test(txHash) ||
+      typeof chainId !== "number" ||
+      !SUPPORTED_CHAINS.includes(chainId) ||
+      typeof walletAddress !== "string" ||
+      !isAddress(walletAddress, { strict: false }) ||
+      (destinationAddress !== undefined &&
+        destinationAddress !== null &&
+        (typeof destinationAddress !== "string" || !isAddress(destinationAddress, { strict: false })))
+    ) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    // The client may not choose its own price.
+    if (!isPriceConsistent(credits, usdcAmount)) {
+      return NextResponse.json(
+        { error: "usdcAmount does not match the credits requested" },
+        { status: 400 }
+      );
+    }
+
+    // Funds must have been sent to a wallet the platform controls.
+    const destination = destinationAddress
+      ? (await isAdminWalletAddress(destinationAddress))
+        ? destinationAddress
+        : null
+      : await getPrimaryDestinationAddress();
+
+    if (!destination) {
+      return NextResponse.json(
+        { error: "Destination is not a platform wallet" },
+        { status: 400 }
+      );
+    }
+
+    // Hashes are case-insensitive on-chain; normalise so one transfer is one row.
+    const normalizedTxHash = txHash.toLowerCase();
+    const idempotencyKey = `${chainId}:${normalizedTxHash}`;
+
+    // The RLS policy only allows service_role inserts, so use the admin client.
     const { data: insertedTransaction, error: insertError } =
       await supabaseAdminClient
         .from("transactions")
@@ -96,15 +131,15 @@ export async function POST(req: NextRequest) {
           transaction_type: "USER",
           user_id: user.id,
           wallet_id: walletAddress,
-          destination_address: destinationAddress || null, // Capture admin wallet destination
+          destination_address: destination,
           direction: "credit",
           amount_usdc: usdcAmount, // numeric(18,6)
           fee_usdc: 0,
           credit_amount: credits,
-          exchange_rate: EXCHANGE_RATE_USDC_PER_CREDIT,
+          exchange_rate: USDC_PER_CREDIT,
           chain: String(chainId),
           asset: "USDC",
-          tx_hash: txHash,
+          tx_hash: normalizedTxHash,
           status: "pending",
           metadata: {},
           idempotency_key: idempotencyKey,
@@ -113,88 +148,54 @@ export async function POST(req: NextRequest) {
         .single();
 
     if (insertError) {
+      if (insertError.code === "23505") {
+        // Duplicate: only hand the existing row back to its owner. Anyone else
+        // presenting this hash gets a conflict, never someone else's record.
+        const { data: existingTx } = await supabaseAdminClient
+          .from("transactions")
+          .select("*")
+          .eq("chain", String(chainId))
+          .ilike("tx_hash", normalizedTxHash)
+          .maybeSingle();
+
+        if (existingTx && existingTx.user_id === user.id) {
+          return NextResponse.json(
+            {
+              ok: true,
+              transactionId: existingTx.id,
+              message: "Transaction already exists",
+              transaction: serializeTransaction(existingTx),
+            },
+            { status: 200 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Transaction already recorded" },
+          { status: 409 }
+        );
+      }
+
       console.error("[transactions] Insert error:", {
         message: insertError.message,
         code: insertError.code,
         hint: insertError.hint,
         details: insertError.details,
       });
-      // Check if this is a duplicate transaction (idempotency)
-      if (
-        insertError.message.includes("idempotency") ||
-        insertError.message.includes("duplicate") ||
-        insertError.code === "23505"
-      ) {
-        // Try to find the existing transaction
-        const { data: existingTx } = await supabaseAdminClient
-          .from("transactions")
-          .select("*")
-          .eq("idempotency_key", idempotencyKey)
-          .single();
-
-        if (existingTx) {
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              transactionId: existingTx.id,
-              message: "Transaction already exists",
-              transaction: {
-                id: existingTx.id,
-                credits: Number(existingTx.credit_amount),
-                usdcAmount: Number(existingTx.amount_usdc),
-                txHash: existingTx.tx_hash,
-                chainId: Number(existingTx.chain),
-                status: existingTx.status,
-                createdAt: existingTx.created_at,
-                walletAddress: existingTx.wallet_id,
-              },
-            }),
-            { status: 200 }
-          );
-        }
-      }
-
-      const rlsIndicator = /row-level security/i.test(insertError.message)
-        ? "RLS_BLOCK"
-        : undefined;
-
-      return new Response(
-        JSON.stringify({
-          error: "Insert failed",
-          details: insertError.message,
-          code: insertError.code,
-          rls: rlsIndicator,
-        }),
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Insert failed" }, { status: 500 });
     }
 
-    return new Response(
-      JSON.stringify({
+    return NextResponse.json(
+      {
         ok: true,
         transactionId: insertedTransaction.id,
         message: "Transaction recorded successfully",
-        transaction: {
-          id: insertedTransaction.id,
-          credits: Number(insertedTransaction.credit_amount),
-          usdcAmount: Number(insertedTransaction.amount_usdc),
-          txHash: insertedTransaction.tx_hash,
-          chainId: Number(insertedTransaction.chain),
-          status: insertedTransaction.status,
-          createdAt: insertedTransaction.created_at,
-          walletAddress: insertedTransaction.wallet_id,
-        },
-      }),
+        transaction: serializeTransaction(insertedTransaction),
+      },
       { status: 201 }
     );
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: "Server error", details: message }),
-      {
-        status: 500,
-      }
-    );
+    console.error("[transactions] Server error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 

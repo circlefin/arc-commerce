@@ -14,20 +14,15 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- This migration renames the 'COMPLETED' value to 'COMPLETE' in the
--- 'admin_transaction_status' enum type to align with Circle's v2 API states.
-
+-- Align the enum with Circle v2 API states: COMPLETED becomes COMPLETE.
 DO $$
 BEGIN
-  -- First, check if the 'COMPLETED' value actually exists in the enum.
-  -- This makes the migration safe to re-run without causing an error.
   IF EXISTS (
     SELECT 1
     FROM pg_enum
     WHERE enumlabel = 'COMPLETED'
       AND enumtypid = 'public.admin_transaction_status'::regtype
   ) THEN
-    -- If it exists, execute the rename command.
     ALTER TYPE public.admin_transaction_status RENAME VALUE 'COMPLETED' TO 'COMPLETE';
   END IF;
 END $$;

@@ -18,7 +18,6 @@
 
 import { addDays, subDays } from "date-fns";
 
-// Define the shape of our data
 export type TransactionStatus = "pending" | "confirmed" | "failed";
 export type Network = "Ethereum" | "Polygon" | "Base";
 
@@ -47,13 +46,10 @@ const networks: Network[] = ["Ethereum", "Polygon", "Base"];
 function createMockTransaction(id: number): PurchaseTransaction {
   const status = statuses[id % statuses.length];
 
-  // Use a fixed start date
   const date = subDays(new Date("2025-09-25T10:00:00Z"), id * 3);
 
-  // Generate predictable values using the ID to ensure they are the same on server and client.
   const usdcPaid = parseFloat((((id * 13.37) % 200) + 10).toFixed(2));
 
-  // Simple, predictable hash
   const txHash = `0x${id.toString(16).padStart(4, "0")}${"a".repeat(60)}`;
 
   const fee = parseFloat((usdcPaid * 0.01).toFixed(2));

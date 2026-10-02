@@ -1,32 +1,25 @@
 on:
   schedule: 
-    # runs once a week on sunday
     - cron: "55 23 * * 0"
     
 jobs:
-  # This workflow contains a single job called "traffic"
   traffic:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         ref: "traffic"
     
-    # Calculates traffic and clones and stores in CSV file
     - name: GitHub traffic 
       uses: sangonzal/repository-traffic-action@v.0.1.6
       env:
         TRAFFIC_ACTION_TOKEN: ${{ secrets.TRAFFIC_ACTION_TOKEN }} 
      
-    # Commits files to repository
     - name: Commit changes
       uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321 # v10.0.0
       with:
         author_name: Traffic Bot
         message: "GitHub traffic"
         add: "./traffic/*"
-        ref: "traffic"  # commits to branch "traffic" 
+        ref: "traffic"  # commits to branch "traffic"

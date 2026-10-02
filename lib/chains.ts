@@ -39,7 +39,6 @@ export const SUPPORTED_CHAINS = [
   SupportedChainId.ARC_TESTNET
 ];
 
-// USDC contract addresses per chain — used for on-chain balance reads.
 export const CHAIN_IDS_TO_USDC_ADDRESSES: Record<number, Hex> = {
   [SupportedChainId.ETH_SEPOLIA]: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
   [SupportedChainId.AVAX_FUJI]: "0x5425890298aed601595a70AB815c96711a31Bc65",
@@ -62,7 +61,6 @@ export const CHAIN_DB_TO_BRIDGE_CHAIN: Record<string, string> = {
   "AVAX-FUJI": "Avalanche_Fuji",
 };
 
-// Public RPC endpoints used for on-chain balance reads via viem.
 export const CHAIN_DB_TO_RPC: Record<string, string> = {
   "ARC-TESTNET": "https://rpc.testnet.arc.network/",
   "ETH-SEPOLIA": "https://rpc.sepolia.org",

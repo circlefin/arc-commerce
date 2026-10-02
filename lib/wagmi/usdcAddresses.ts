@@ -29,10 +29,6 @@ import {
   optimismSepolia,
 } from "wagmi/chains";
 
-/**
- * Canonical USDC (or primary deployment) addresses (6 decimals).
- * Includes selected testnets for development.
- */
 export const USDC_ADDRESSES: Record<number, `0x${string}`> = {
   // Mainnets
   [mainnet.id]: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
@@ -42,18 +38,13 @@ export const USDC_ADDRESSES: Record<number, `0x${string}`> = {
   [optimism.id]: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
   // Testnets
   [baseSepolia.id]: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  // Optional additional testnets (placeholder or known deploys)
   [sepolia.id]: "0xd6c3a3a6B523b3f30c1e03DF621cBe03b12E0A35",
   [polygonAmoy.id]: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
-  // Updated to official Arbitrum Sepolia USDC
   [arbitrumSepolia.id]: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
   [optimismSepolia.id]: "0x09D1D7d6b9d4B4b0597F64E299fB2C89F76DdF24",
   5042002: "0x3600000000000000000000000000000000000000",
 };
 
-/**
- * Helper to get USDC address (returns undefined if unsupported).
- */
 export function getUsdcAddress(chainId?: number) {
   return chainId ? USDC_ADDRESSES[chainId] : undefined;
 }

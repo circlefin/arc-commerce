@@ -14,13 +14,8 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- This table will store a log of all administrative fund transfers
--- initiated from platform-controlled Circle wallets.
-
--- Step 1: Create a custom ENUM type for the transaction status.
 CREATE TYPE admin_transaction_status AS ENUM ('PENDING', 'CONFIRMED', 'FAILED');
 
--- Step 2: Create the new `admin_transactions` table.
 CREATE TABLE public.admin_transactions (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     circle_transaction_id text NOT NULL UNIQUE,
@@ -34,22 +29,18 @@ CREATE TABLE public.admin_transactions (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Add comments for clarity
 COMMENT ON TABLE public.admin_transactions IS 'Stores a log of administrative fund transfers from Circle wallets.';
 COMMENT ON COLUMN public.admin_transactions.circle_transaction_id IS 'The unique transaction identifier from the Circle API.';
 COMMENT ON COLUMN public.admin_transactions.source_wallet_id IS 'The internal ID of the source admin wallet.';
 
--- Step 3: Enable Row Level Security (RLS).
 ALTER TABLE public.admin_transactions ENABLE ROW LEVEL SECURITY;
 
--- Create a policy that restricts all access to the trusted `service_role` only.
 CREATE POLICY "Allow full access for service role"
 ON public.admin_transactions
 FOR ALL
 USING (auth.role() = 'service_role')
 WITH CHECK (auth.role() = 'service_role');
 
--- Step 4: Create the trigger for the `updated_at` timestamp.
 CREATE TRIGGER on_admin_transactions_update
 BEFORE UPDATE ON public.admin_transactions
 FOR EACH ROW

@@ -19,6 +19,7 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin-client";
+import { TX_HASH_PATTERN } from "@/lib/payments/tx-hash";
 
 type CircleNotification = {
   id?: string;
@@ -90,19 +91,27 @@ async function logWebhookEvent(
 }
 
 /**
- * Updates USER credit-purchase transactions when Circle confirms the on-chain transfer.
- * ADMIN and bridge transactions are handled synchronously by App Kit and logged as
- * complete at submission time, so they do not need webhook updates here.
+ * Updates USER credit-purchase transactions when Circle reports the on-chain transfer.
+ * ADMIN and bridge transactions are handled synchronously by App Kit and logged at
+ * submission time, so they do not need webhook updates here.
+ *
+ * Status changes and credit grants go through settle_user_transaction(), which locks
+ * the row and grants credits at most once, so duplicate or racing deliveries (and the
+ * wallet-confirmation PATCH) cannot double-credit.
  */
 async function updateUserTransactionStatus(notification: CircleNotification) {
   const mappedStatus = mapCircleStateToStatus(notification.state);
   if (!mappedStatus) return;
+  if (typeof notification.txHash !== "string" || !TX_HASH_PATTERN.test(notification.txHash)) {
+    return;
+  }
 
   const { data: creditTransactions, error: creditTxError } =
     await supabaseAdminClient
       .from("transactions")
-      .select("id, status, user_id, credit_amount")
-      .eq("tx_hash", notification.txHash)
+      .select("id")
+      // Hashes are case-insensitive; legacy rows may not be lower-cased.
+      .ilike("tx_hash", notification.txHash)
       .eq("transaction_type", "USER")
       .eq("direction", "credit");
 
@@ -111,69 +120,21 @@ async function updateUserTransactionStatus(notification: CircleNotification) {
     return;
   }
 
-  const statusPriority: Record<string, number> = {
-    pending: 1,
-    confirmed: 2,
-    complete: 3,
-    failed: 0,
-  };
-
   for (const transaction of creditTransactions || []) {
-    if (transaction.status === mappedStatus) continue;
+    const { data: outcome, error: settleError } =
+      await supabaseAdminClient.rpc("settle_user_transaction", {
+        p_transaction_id: transaction.id,
+        p_new_status: mappedStatus,
+      });
 
-    const currentPriority = statusPriority[transaction.status] || 0;
-    const newPriority = statusPriority[mappedStatus] || 0;
-
-    if (mappedStatus !== "failed" && newPriority <= currentPriority) {
-      console.log(
-        `Skipping status downgrade for ${transaction.id}: '${transaction.status}' -> '${mappedStatus}'`
-      );
-      continue;
-    }
-
-    const isSuccessfulUpdate =
-      mappedStatus === "confirmed" || mappedStatus === "complete";
-    const wasAlreadyProcessed =
-      transaction.status === "confirmed" || transaction.status === "complete";
-
-    if (isSuccessfulUpdate && !wasAlreadyProcessed) {
-      console.log(
-        `Transaction ${transaction.id} confirmed. Crediting user ${transaction.user_id} with ${transaction.credit_amount} credits.`
-      );
-
-      const { error: creditsError } = await supabaseAdminClient.rpc(
-        "increment_credits",
-        {
-          user_id_to_update: transaction.user_id,
-          amount_to_add: transaction.credit_amount,
-        }
-      );
-
-      if (creditsError) {
-        console.error(
-          `CRITICAL: Failed to increment credits for user ${transaction.user_id} on transaction ${transaction.id}. Error:`,
-          creditsError
-        );
-      } else {
-        console.log(`Successfully credited user ${transaction.user_id}.`);
-      }
-    }
-
-    const { error: updateError } = await supabaseAdminClient
-      .from("transactions")
-      .update({ status: mappedStatus, updated_at: new Date().toISOString() })
-      .eq("id", transaction.id);
-
-    if (updateError) {
-      console.error(
-        `Failed updating transaction status for ${transaction.id}:`,
-        updateError
-      );
-    } else {
-      console.log(
-        `Updated transaction ${transaction.id} status from '${transaction.status}' to '${mappedStatus}'`
+    if (settleError) {
+      // Surface the failure so Circle retries the delivery.
+      throw new Error(
+        `Failed to settle transaction ${transaction.id}: ${settleError.message}`
       );
     }
+
+    console.log(`Transaction ${transaction.id} -> '${mappedStatus}': ${outcome}`);
   }
 }
 

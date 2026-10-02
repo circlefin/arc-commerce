@@ -16,7 +16,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// components/CopyTxHashButton.tsx
 "use client";
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";

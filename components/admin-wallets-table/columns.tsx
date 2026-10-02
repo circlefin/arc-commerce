@@ -19,7 +19,24 @@
 "use client";
 
 import { useState } from "react";
-import { ColumnDef, Row, Table } from "@tanstack/react-table";
+import {
+  ColumnDef,
+  columnFilteringFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFn_includesString,
+  metaHelper,
+  Row,
+  rowPaginationFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  sortFn_datetime,
+  sortFn_text,
+  Table,
+  tableFeatures,
+} from "@tanstack/react-table";
 import { Database } from "@/types/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +69,29 @@ import { ClientDate } from "@/components/ui/client-date";
 type Wallet = Database["public"]["Tables"]["admin_wallets"]["Row"];
 type WalletStatus = Database["public"]["Enums"]["admin_wallet_status"];
 export type ConfirmableAction = "DISABLED" | "ARCHIVED";
+
+type AdminWalletsTableMeta = {
+  openConfirmationDialog?: (wallet: Wallet, action: ConfirmableAction) => void;
+  openTransferDialog?: (wallet: Wallet) => void;
+  openBalanceDialog?: (wallet: Wallet) => void;
+};
+
+export const features = tableFeatures({
+  columnFilteringFeature,
+  rowSortingFeature,
+  rowPaginationFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  filterFns: { includesString: filterFn_includesString },
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    basic: sortFn_basic,
+    datetime: sortFn_datetime,
+    text: sortFn_text,
+  },
+  tableMeta: metaHelper<AdminWalletsTableMeta>(),
+});
 
 export const CopyableCell = ({
   value,
@@ -128,8 +168,8 @@ const ActionsCell = ({
   row,
   table,
 }: {
-  row: Row<Wallet>;
-  table: Table<Wallet>;
+  row: Row<typeof features, Wallet>;
+  table: Table<typeof features, Wallet>;
 }) => {
   const wallet = row.original;
   const openConfirmationDialog = table.options.meta?.openConfirmationDialog;
@@ -182,7 +222,7 @@ const ActionsCell = ({
   );
 };
 
-export const columns: ColumnDef<Wallet>[] = [
+export const columns: ColumnDef<typeof features, Wallet>[] = [
   {
     accessorKey: "label",
     header: ({ column }) => {
@@ -237,7 +277,6 @@ export const columns: ColumnDef<Wallet>[] = [
       const address = row.original.address;
       const chain = row.original.chain;
 
-      // Convert chain name to numeric ID for the utility function
       const chainId = chain ? chainNameToId(chain) : undefined;
       const explorerUrl = chainId
         ? getExplorerUrl(chainId, undefined, address)

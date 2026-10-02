@@ -14,10 +14,7 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Add unique constraint to admin_wallets label column
--- This prevents duplicate admin wallets from being created during initialization race conditions
-
--- Add a unique constraint on the label column to prevent duplicate "Primary wallet" entries
+-- Unique label stops initialization races from creating duplicate wallets.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_wallets_label_unique
 ON public.admin_wallets(label)
 WHERE label = 'Primary wallet';

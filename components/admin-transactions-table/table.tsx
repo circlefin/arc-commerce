@@ -18,13 +18,7 @@
 
 "use client";
 
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { ColumnDef, flexRender, useTable } from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -35,27 +29,23 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useRealtimeAdminTransactions, AdminTransaction } from "@/hooks/use-realtime-admin-transactions";
+import { features } from "@/components/admin-transactions-table/columns";
 
-interface AdminTransactionsTableProps<TValue> {
-  columns: ColumnDef<AdminTransaction, TValue>[];
+interface AdminTransactionsTableProps {
+  columns: ColumnDef<typeof features, AdminTransaction>[];
   initialData: AdminTransaction[];
 }
 
-export function AdminTransactionsTable<TValue>({
+export function AdminTransactionsTable({
   columns,
   initialData,
-}: AdminTransactionsTableProps<TValue>) {
-  // Use the custom hook to manage real-time data
+}: AdminTransactionsTableProps) {
   const data = useRealtimeAdminTransactions(initialData);
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data,
     columns,
-    filterFns: {
-      dateBetween: () => true
-    },
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   });
 
   return (
@@ -77,7 +67,7 @@ export function AdminTransactionsTable<TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>

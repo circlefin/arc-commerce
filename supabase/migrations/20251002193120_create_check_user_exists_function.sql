@@ -14,21 +14,13 @@
 --
 -- SPDX-License-Identifier: Apache-2.0
 
--- Migration: Create a function to check for user existence by email.
--- This is a secure and highly performant way to check if a user exists
--- without exposing user data or relying on slow, paginated list methods.
-
+-- Fast existence check by email that never exposes auth.users to the caller.
 CREATE OR REPLACE FUNCTION public.check_user_exists(user_email TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
--- SECURITY DEFINER is crucial. It allows this function to run with the
--- permissions of its creator (the admin), giving it temporary, secure
--- access to the `auth.users` table.
 SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
-    -- Perform a direct, indexed query on the auth.users table.
-    -- This is extremely fast and scalable.
     RETURN EXISTS (
         SELECT 1
         FROM auth.users
@@ -37,6 +29,4 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission to the service_role so our server-side
--- script can call this function.
 GRANT EXECUTE ON FUNCTION public.check_user_exists(TEXT) TO service_role;
