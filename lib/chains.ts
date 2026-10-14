@@ -62,7 +62,7 @@ export const CHAIN_DB_TO_BRIDGE_CHAIN: Record<string, string> = {
 };
 
 export const CHAIN_DB_TO_RPC: Record<string, string> = {
-  "ARC-TESTNET": "https://rpc.testnet.arc.network/",
+  "ARC-TESTNET": "https://rpc.testnet.arc.io/",
   "ETH-SEPOLIA": "https://rpc.sepolia.org",
   "BASE-SEPOLIA": "https://sepolia.base.org",
   "AVAX-FUJI": "https://api.avax-test.network/ext/bc/C/rpc",
