@@ -27,7 +27,7 @@ Integrate USDC as a payment method for purchasing credits on Arc. This sample ap
 1. Clone the repository and install dependencies:
 
    ```bash
-   git clone git@github.com:akelani-circle/arc-commerce.git
+   git clone git@github.com:circlefin/arc-commerce.git
    cd arc-commerce
    npm install
    ```
