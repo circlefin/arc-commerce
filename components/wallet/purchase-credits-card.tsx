@@ -268,7 +268,7 @@ microToUsdc(requiredUsdcMicro),
                 USDC
               </span>
             </div>
-            {isLoadingDestination && (
+            {!isLoadingDestination && !destination && (
               <div className="text-red-500 text-center pt-2">
                 Destination address not configured.
               </div>
